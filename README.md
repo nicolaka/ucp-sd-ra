@@ -231,21 +231,21 @@ Interlock is a containerized, event-driven tool that connects to the UCP control
 
 First, you would need to configure Interlock. Interlock uses UCP's k/v store to store its configs. This enables a single update to the configuration to be used by multiple Interlock/LB instances (that is if you decide to deploy multiple instances of Interlock+lb).
 
-Second, you deploy Interlock and the load balancer containers on a regular UCP node(s). It is recommended to dedicate some nodes in a UCP cluster to provide the external connectivity and load balancing service. These nodes need to have externally routable IP addresses reachable by the services that need to access your application. The other nodes running your services do not have to have externally routable IP addresses. In this example we will one of the three UCP nodes (we will call it **lb**) to deploy Interlock and the loadbalancer using Docker Compose.
+Second, you would need to deploy Interlock and the load balancer containers on a regular UCP node(s). It is recommended to dedicate some nodes in a UCP cluster to provide the external connectivity and load balancing service. These nodes need to have externally routable IP addresses reachable by the services that need to access your application. The other nodes running your services do not have to have externally routable IP addresses. In this example we will one of the three UCP nodes (we will call it **lb**) to deploy Interlock and the loadbalancer using Docker Compose.
 
 
 Third, you would need to create a DNS record that represents your application's domain name and map it to the IP address of **lb**. 
 
-Finally, you need to add specific metadata in the form of container labels when deploying your application. The labels are then used by Interlock to register the container against the loadbalancer. 
+Finally, you need to add specific metadata in the form of container labels when deploying your application. The labels are then used by Interlock to register the container against the load balancer. 
 
-The above steps provide the necessary service resgistration and loadbalancing solution that can be used by any developer when deploying their application on UCP. Follow the below step-by-step procedures to configure your UCP cluster based on your preferred industry-standard loadbalancing backend (NGINX or HAProxy). 
+The above steps provide the necessary service registration and load balancing solution that can be used by any developer when deploying their application on UCP. Follow the below step-by-step procedures to configure your UCP cluster based on your preferred industry-standard load balancing backend (NGINX or HAProxy). 
 
 ![](images/lb_sd_reference_arc_ext_sd.png)
 
 
 ### 3A. Interlock and NGINX/NGINX+
 
-The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX Plus:
+The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX/NGINX Plus:
 
 1. On **any** UCP Controller nodes, update Interlock configs using a single curl command against UCP key/value store. **Note**: We are using a sample NGINX config, full documentation for NGINX options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/configuration.md).
 
@@ -328,7 +328,7 @@ $ cd ./interlock-lbs/interlock-nginx
 interlock-lbs/interlock-nginx$ docker-compose up -d
 ```
 
-6. Confirm that Interlock connected to the Swarm event stream:
+6. Confirm that Interlock is connected to the Swarm event stream:
 
 
 ```
@@ -403,7 +403,7 @@ adminPass = "CHANGEME"'
 
 **NOTE**: (FIXME) If CONTROLLER_IP doesn't get substituted by actual name/IP in curl command, edit the command manually and substitute your local IP of controller.
 
-2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose in installed :
+2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose is installed :
 
 
 ```
@@ -434,7 +434,7 @@ interlock-lbs/interlock-haproxy$ docker-compose up -d
 ```
 
 
-6. Confirm that interlock connected to the Swarm event stream:
+6. Confirm that Interlock is connected to the Swarm event stream:
 
 ```
 interlock-lbs/interlock-haproxy$ docker-compose logs
@@ -574,7 +574,7 @@ networks:
 voteapps$ docker-compose up -d
 ```
 
-5. On the **lb**, confirm that Interlock registered the apps with the loadbalancer by looking at its logs. You should see the "restarted proxy container" message if Interlock registered the container successfully.
+5. On the **lb**, confirm that Interlock registered the apps with the load balancer by looking at its logs. You should see the "restarted proxy container" message if Interlock registered the container successfully.
 
 
 ```
@@ -611,4 +611,4 @@ Creating and starting 10 ... done
 
 ## Summary
 
-In this Reference Architecture, we setup a highly-available Docker Universal Control Plane (UCP) cluster to enable dynamic built-in service discovery and load balancing by addressing three key design requirements : UCP High-Availability, Cluster Service Discovery + Load Distribution, and External Service Discovery + Load Distribution. Additionally, we provided sample configurations and workflows for deploying microservice applications on UCP.
+In this Reference Architecture, we set up a highly-available Docker Universal Control Plane (UCP) cluster and enabled dynamic built-in service discovery and load balancing by addressing three key design requirements : UCP High-Availability, Cluster Service Discovery + Load Distribution, and External Service Discovery + Load Distribution. Additionally, we provided sample configurations and workflows for deploying microservice applications on UCP.
