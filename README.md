@@ -545,6 +545,9 @@ services:
     image: docker/example-voting-app-worker
     networks:
       - voteapp
+    network_aliases:
+      voteapp:
+	    - workers	
   redis:
     image: redis
     ports:
