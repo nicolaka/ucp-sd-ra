@@ -90,19 +90,22 @@ There are software version requirements for this reference architecture.  Other 
 ### Prerequisites
 For this reference architecture, you will need the following environment setup.  For instructions on installation go [here](FIXME).
 
--  UCP is installed in HA mode ( at least 3 controllers).
--  UCP nodes are configured (at least 3 nodes).
--  Multi-host networking is configured on all UCP nodes.
+-  Atleast 3 UCP Controllers Nodes.
+-  Atleast 3 UCP Cluster Nodes. 
+-  A designated DNS record for UCP (e.g ucp.myenterprise.com).
+
 
 ![](images/lb_sd_reference_arch_base_env.png)
 
 
-
 ### Design Considerations
 
-There are multiple considerations for designing production-ready infrastructure using Docker Datacenter. From a developer's point of view, it is important to ensure that any design should integrate with the established developer workflow. For example, if developers use [Docker Compose] to build their applications locally during development, the new design should ensure Compose files can also be used to deploy to production. Additionally, it's important to ensure that each service deployed on Docker Datacenter  is easily discoverable and reachable by other services that are part of the same app, regardless where the containers providing these service are deployed in the cluster. This means that developers can assume that moving their apps from local development to production cluster will not break the application. Finally, it is crucial to ensure that the developers' apps are easily discoverable and accessible from outside the cluster  regardless which cluster or cluster node they end up being deployed to. This means that as the app moves from one cluster to another, developers should not worry about losing access to their applications.
+There are multiple considerations for designing production-ready infrastructure using Docker Datacenter.
 
-From an operational point of view, it is important to ensure that UCP itself is highly available so that any failure in one or more UCP controllers wouldn't result in inability to access the UCP controller. Additionally, providing a scalable, secure, and stateless load-balancing service for all applications is important that as the application scales, load-balancing can dynamically ensure that traffic is equally distributed across all of the containers providing these services. 
+From an operational point of view, it is important to ensure that UCP itself is highly available so that any failure in one or more UCP controllers wouldn't result in inability to access the UCP controller. Additionally, providing a scalable, secure, and stateless load-balancing service for **all** applications is important that as the application scales, load-balancing can dynamically ensure that traffic is equally distributed across all of the containers providing these services. 
+
+From a developer's point of view, it is important to ensure that any design should integrate with the established developer workflow. For example, if developers use Docker Compose to build their applications locally during development, the new design should ensure Compose files can also be used to deploy to production. Either directly by the developers or through a coordinate sign-off process to the deployment operations team. Additionally, it's important to ensure that each service deployed on Docker Datacenter  is easily discoverable and reachable by other services that are part of the same app, regardless where the containers providing these service are deployed in the cluster. This means that developers can assume that moving their apps from local development to production cluster will not break the application. Finally, it is crucial to ensure that the developers' apps are easily discoverable and accessible from outside the cluster  regardless which cluster or cluster node they end up being deployed to. This means that as the app moves from one cluster to another, developers should not worry about losing access to their applications.
+
 
 In summary, there are three key design considerations that need to be addressed to ensure the developers and operations' requirements are met
 
@@ -112,39 +115,85 @@ In summary, there are three key design considerations that need to be addressed 
 
 ### Solution Overview
 
+In the following sections, we will go through each of the three design considerations and provide a solution to address them. We will start by building a highly available UCP cluster that can withstand controller failure without impacting deployment operations. We will then focus on addressing the concern of intra cluster services discovery. Finally, we will go through designing a highly-scalable loadbalancing infrastructure that uses industry standards.
 
 
-### 1. UCP High-Availability 
+## 1. UCP High-Availability 
 
-Docker UCP supports high availability (HA) by replicating the UCP controller along with the underlying Swarm manager and key-value store containers within your cluster. HA requires at least three (3) controllers, a primary and two replicas , to be configured on three separate nodes. It is recommended to never run a cluster with only the primary controller and a single replica as this results in a split-brain scenario(where each controller thinks it is the master controller in the luster). You can easily deploy UCP in HA using a single command by following [these](FIXME) instructions.
+Docker UCP supports high availability (HA) by replicating the UCP controller along with the underlying Swarm manager and key-value store containers within your cluster. When you deploy UCP, you start by deploying the first UCP controller followed by the replicas. Functionally, all controllers are the same. HA requires at least three (3) controllers, a primary and two replicas , to be configured on three separate nodes. It is not recommended to run a cluster with only the primary controller and a single replica as this results in a split-brain scenario (e.g each controller thinks it is the master controller in the luster). Failure tolerance for HA UCP deployments can be summarized as follows:
 
-UCP controllers are stateless by design. All UCP controllers accept requests, and then forward them to the Swarm Manager. Any controller failure when UCP is deployed in HA will not have any impact on your UCP cluster, both from UCP UI access or underlying cluster management perspectives. However, if you're statically mapping a DNS A-record to a primary UCP controller IP address and the controller itself or the machine goes down, you will not be able to reach UCP. For that reason, it is recommended to deploy a UCP controller load balancer. An upstream load balancer can distribute all UCP requests to all three controllers behind it. 
-
-[image](image)
-
-**Health Checks**: The load balancer can use the UCP API endpoint `/_ping` to ensure that each of the controllers is healthy. A `200 OK` response means that the controller is healthy and it can receive traffic. 
-
-**Listeners**:  The load balancer should be configured to load balance using TCP port 80 and 443 to all three nodes in the cluster. The load balancer should not terminate/reestablish HTTPS connections. WHY-FIXME
-
-**DNS**: DNS A-record should be mapped to the load balancer itself( e.g VIP) and not to any individual controller.
-
-**IPs**: The load balancer can load balance to the controller's' private or public IPs. 
-
-**SSL Certificates**: When you install UCP, ensure that you use the Fully Qualified Domain Name (FQDN) of your UCP when asked for additional Subject Alternative Names(SAN). Provide your UCP's FQDN when asked for additional SAN on **ALL** UCP controllers ( including the replicas ). If you would like to use your own CA to sign UCP's certificate, please follow the following directions [FIXME]().
+| Number Of Deployed Controllers | Failure Tolerance |
+|-----------------------|-------------------|
+| 1                     | 0                 |
+| 3                     | 1                 |
+| 5                     | 2                 |
+| 7                    | 3                 |
+| ...                   | ...              |
 
 
-Should the primary controller fail, the UCP controller load balancer will ensure that UCP can be reached and all Docker deployment workflows are run without impact. This is the case for both UI and CLI traffic.
+
+UCP controllers are stateless by design. All UCP controllers accept requests, and then forward them to the underlying Swarm Manager. Any controller failure when UCP is deployed in HA will not have any impact on your UCP cluster, both from UCP web access (UI) or underlying cluster management perspectives (CLI). However, if you're statically mapping a DNS record to a primary UCP controller's IP address and that controller goes down, you will not be able to reach UCP. For that reason, it is recommended to deploy a UCP controller load balancer. An upstream load balancer can distribute all UCP requests to all three controllers behind it. As a sample reference, an HAProxy loadbalancer config file is provided below. Similarly, if you're deploying UCP in a public cloud, you can create a loadbalancer directly from teh cloud provider ( AWS's ELB or Azure's Load Balancer)
+
+![](images/lb_sd_reference_arch_ucp_ha.png)
 
 
-### 2. Service Discovery + load balancing (Intra-Cluster)
+```
+global
+  maxconn 256
 
-In order for different microservice containers to communicate, they must first discover each other. The introduction of Docker multi-host networking  Docker 1.9 enabled multiple services belonging to a single application to be connected via an [Overlay Network](FIXME) that spans multiple nodes. Docker 1.10 added an embedded DNS-based for hostname lookups for a more reliable and scalable service discovery. 
+defaults
+  mode tcp
+  timeout connect 5000ms
+  timeout client 50000ms
+  timeout server 50000ms
 
-Containers deployed using Docker 1.10 can now use DNS to resolve the IP of other containers on the same network. This behaviour works out of the box for both local and overlay user-defined networks.  
+frontend public
+  option tcplog
+  bind *:80
+  redirect scheme https code 301 if !{ ssl_fc }
+  bind *:443
+  default_backend servers
 
-Docker 1.10 also introduced the concept of _network alias_. A network alias abstracts multiple containers under a single _service name_. This means that scaled services ( e.g `docker-compose scale service=number`) can be grouped under and resolved by a single alias. Docker will resolve the alias to a healthy container that belongs to that alias. This is helpful for stateless services in which any container can be used to provide a service. 
+backend servers
+  mode tcp
+  balance roundrobin
+  server ucp1 10.10.10.11:443 check
+  server ucp2 10.10.10.12:443 check
+  server ucp3 10.10.10.13:443 check
 
-**Example** In our sample Voting App, a Java `worker` service can belong to the alias `workers`. When you scale the worker service using Compose, all the `worker` services will belong to a single alias called `workers`. If other services need to connect with any of these services, Docker will resolve the `workers` alias to a healthy container. We can add network aliases for a the `worker` service as follows:
+
+```
+
+Here are some recommended UCP controller loadbalancer configuration:
+
+**Health Checks**: The load balancer can use UCP's API endpoint `/_ping` to ensure that each of the controllers is healthy. A `200 OK` response means that the controller is healthy and it can receive traffic. 
+
+**Listeners**:  The load balancer should be configured to load balance using TCP port 80 and 443 to all three nodes in the cluster. The load balancer should **not** terminate/reestablish HTTPS connections due to mutual TLS connection requirement in order to use Docker Client with UCP. (FIXME) 
+
+**DNS**: a DNS record should be mapped to the load balancer itself( e.g VIP) and not to any individual controller.
+
+**IPs**: The load balancer can load balance to the controller's  private or public IPs. 
+
+**SSL Certificates**: When you install the UCP controllers, ensure that you use the Fully Qualified Domain Name (FQDN) of the UCP when asked for additional Subject Alternative Names(SAN). You need to do this on **ALL** UCP controllers (including the replicas). The SANs are used by UCP's CA to sign SSL certificates.
+
+If you would like to use your own CA to sign UCP's certificate, please follow the following directions [directions](FIXME).
+
+Should any controller fail, the UCP Controller load balancer will ensure that UCP can be reached and all Docker deployment workflows are run without impact. 
+
+Now that you have the full requirements for UCP HA deployment, you can easily deploy the UCP controllers and nodes by following [these](FIXME) instructions. 
+
+Once you install and configure the UCP controllers, you can download the UCP Client Bundle to directly use your local Docker client to deploy containers on UCP. Instructions to obtain the Client Bundle are  [here](FIXME)
+
+## 2. Internal Service Discovery + Load Distribution
+
+
+In order for different microservice containers to communicate, they must first discover each other. The introduction of multi-host networking in Docker 1.9 enabled multiple services belonging to a single application to be connected via an [Overlay Network](https://docs.docker.com/engine/userguide/networking/get-started-overlay/) that spans multiple nodes. Docker 1.10 added an embedded DNS-based for hostname lookups for a more reliable and scalable service discovery. 
+
+Containers deployed using Docker 1.10 can now use DNS to resolve the IP of other containers on the same network. This behaviour works out of the box for user-defined bridge and overlay networks.  
+
+Docker 1.10 also introduced the concept of _network alias_. A network alias abstracts multiple containers under a single alias. This means that scaled services ( e.g `docker-compose scale service=number`) can be grouped under and resolved by a single alias. Docker will resolve the alias to a healthy container that belongs to that alias. This is extremely helpful for stateless services where any container can be used to provide a service. 
+
+**Example** In our sample Voting App, the Java `worker` service can belong to the alias `workers`. If additional workers are needed, you can scale the `worker` service using Compose. All the `worker` services can belong to a single alias called `workers`. If other services need to connect with any of these services, Docker will resolve the `workers` alias to a healthy container. We can add network aliases for  the `worker` service in the Compose file as follows:
 
 
 ```
@@ -163,130 +212,189 @@ Docker 1.10 also introduced the concept of _network alias_. A network alias abst
 
 ```
 
-Other services can reach the worker containers by either using the container name (`worker_1` or `worker_1.back-tier`) or the alias name (`workers`).
+We can now deploy the app on UCP using Docker Compose. The `worker` service is then scaled such that there are two containers running (`worker_1` and `worker_2`). Other services can reach either worker containers by using the container name `worker_1` or the alias name (`workers`). In the case that `worker_1` goes down, Docker automatically will resolved the `workers` alias to `worker_2`.
 
-**Load-Balancing**: Currently the embedded DNS-based service discovery only pins traffic to a single healthy container that is part of a network alias. There is currently no embedded load balancing that will distribute traffic across all containers within a single alias. If you need to load balance traffic within the cluster, you can use the design introduced in the section ( Inter-Cluster Service Discovery). FIXME
+![](images/lb_sd_reference_arch_intra_sd.png)
 
-### 3. Inter-Cluster Service Discovery + load balancing 
+**Load-Balancing**: Currently the embedded DNS-based service discovery only pins traffic to a single healthy container that is part of a network alias.(FIXME)
 
-Some services are designed to be accessed from outside the UCP cluster (typically by a DNS name) whether these services need to be accessed by other services in a different cluster or external public users/services. To access these services, you typically need to create a DNS record for each service, and map it to the exact node that that service is running on. If you also need to load balance across multiple containers, you need to add a load balancer and reconfigure it every time a container comes up/goes down. This process is tedious and unscalable. 
+## 3. External Service Discovery + Load Distribution 
 
-An easier, more scalable, and automated way of enabling a service discovery and load balancing is to have an event-driven service registrator that automatically updates load-balancing backends as new containers come up or go down. 
+Some services are designed to be accessed from outside the UCP cluster (typically by a DNS name) whether these services need to be accessed by other services in a different cluster or by external public users/services. To access these services, you typically need to create a DNS record for each service, and map it to the exact node that that service is running on. If you also need to load balance across multiple containers, you need to add a load balancer and reconfigure it every time a container comes up/goes down. This process is tedious and unscalable. 
 
-By combining [Interlock](www.github.com/ehazlett/interlock) with your preferred load balancer [HAProxy](https://hub.docker.com/_/haproxy/) or [NGINX](https://hub.docker.com/_/nginx/), you can ensure that your services are externally accessible and load-balanced. 
+An easier, more scalable, and automated solution to enable external service discovery and load balancing is to use an event-driven service registrator that automatically updates a load-balancer's config as containers go up or down in your UCP cluster. This can be achieved by combining [Interlock](www.github.com/ehazlett/interlock) with your preferred load balancer [HAProxy](https://hub.docker.com/_/haproxy/) or [NGINX](https://hub.docker.com/_/nginx/).
 
-Interlock is containerized,event-driven tool that connects to UCP's Swarm manager and watches for events. Events can be containers being spun up or going down. It also looks for certain metadata that these containers have. These can be hostnames or labels that you configure the container with. It then uses the metadata to register/de-register these containers as load balancing backends. It then ensures that the load balancer uses updated backend configs to direct incoming requests to healthy containers. Both interlock and the load balancer containers are stateless, and hence can be scaled horizontally across multiple nodes to provide a highly-available load balancing services.
-
-
-**How it works:**
-
-Interlock and the load balancer container need to be deployed on UCP node(s). However, it is recommended to dedicate 1 or more nodes per UCP cluster to provide the external connectivity and load balancing service. These nodes need to have externally routable IP addresses. The other nodes running your services do not have to have externally routable IP addresses. In this example we will use a single dedicated UCP node (called **ucp-lb**) to deploy Interlock+LB using Docker Compose.
+Interlock is containerized, event-driven tool that connects to UCP Controllers and watches for events. Events can be containers being spun up or going down. It also looks for certain metadata that these containers have. These can be hostnames or labels that you configure the container with. It then uses the metadata to register/de-register these containers to a load balancing backend. The load-balancer uses updated backend configs to direct incoming requests to healthy containers. Both Interlock and the load balancer containers are stateless, and hence can be scaled horizontally across multiple nodes to provide a highly-available load balancing services for all deployed applications.
 
 
-Once you deploy interlock+lb, you can create a wildcard DNS record that represents your application's domain name and map it to the IP address of the node that's running interlock+lb( in our example it's **ucp-lb**). The metadata added to the containers needs to provide the hostname+domain name for which this container belongs to. That info is then used by interlock to added it to the corresponding load balancer backend. Once interlock+lb are deployed, simply adding specific labels to the container will automatically allow external services to reach them.
+## How it Works:
 
-Interlock uses UCP's k/v store for configs. This enables a single update to the configuration to be used by multiple interlock/lb instances ( if you decide to deploy multiple instances of interlock+lb).  
+
+
+First, you would need to configure Interlock. Interlock uses UCP's k/v store to store its configs. This enables a single update to the configuration to be used by multiple Interlock/LB instances (that is if you decide to deploy multiple instances of Interlock+lb).
+
+Second, you deploy Interlock and the load balancer containers on a regular UCP node(s). It is recommended to dedicate some nodes in a UCP cluster to provide the external connectivity and load balancing service. These nodes need to have externally routable IP addresses reachable by the services that need to access your application. The other nodes running your services do not have to have externally routable IP addresses. In this example we will one of the three UCP nodes (we will call it **lb**) to deploy Interlock and the loadbalancer using Docker Compose.
+
+
+Third, you would need to create a DNS record that represents your application's domain name and map it to the IP address of **lb**. 
+
+Finally, you need to add specific metadata in the form of container labels when deploying your application. The labels are then used by Interlock to register the container against the loadbalancer. 
+
+The above steps provide the necessary service resgistration and loadbalancing solution that can be used by any developer when deploying their application on UCP. Follow the below step-by-step procedures to configure your UCP cluster based on your preferred industry-standard loadbalancing backend (NGINX or HAProxy). 
+
 
 ### 3A. Interlock and NGINX/NGINX+
 
-The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node  using Interlock + NGINX Plus:
+The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX Plus:
 
-1. On **any** controller nodes, update Interlock configs using a single curl command against UCP k/v store:
+1. On **any** UCP Controller nodes, update Interlock configs using a single curl command against UCP key/value store. **Note**: We are using a sample NGINX config, full documentation for NGINX options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/configuration.md).
 
 ```
-$ export CONTROLLER_IP=ucp.enterprise.com
-or
-$ export CONTROLLER_IP=10.10.10.1
+$ export CONTROLLER_IP= ucp.myenterprise.com
 ```
+
 followed by:
-```
-$ docker exec -ti ucp-kv curl --cacert /etc/docker/ssl/ca.pem --cert /etc/docker/ssl/cert.pem --key /etc/docker/ssl/key.pem https://$CONTROLLER_IP:12379/v2/keys/interlock/v1/config -XPUT -d value='listenAddr = ":8080" dockerURL = "tcp://$CONTROLLER_IP:2376" tlsCaCert = "/certs/ca.pem" tlsCert = "/certs/cert.pem" tlsKey = "/certs/key.pem" [[Extensions]]
->   Name = "nginx"
->   ConfigPath = "/etc/conf/nginx.conf"
->   PidPath = "/etc/conf/nginx.pid"
->   BackendOverrideAddress = ""
->   ConnectTimeout = 5000
->   ServerTimeout = 10000
->   ClientTimeout = 10000
->   MaxConn = 1024
->   Port = 80
->   SyslogAddr = ""
->   NginxPlusEnabled = false
->   AdminUser = "admin"
->   AdminPass = ""
->   SSLCertPath = ""
->   SSLCert = ""
->   SSLPort = 443
->   SSLOpts = ""
->   User = "www-data"
->   WorkerProcesses = 2
->   RLimitNoFile = 65535
->   ProxyConnectTimeout = 600
->   ProxySendTimeout = 600
->   ProxyReadTimeout = 600
->   SendTimeout = 600
->   SSLCiphers = "HIGH:!aNULL:!MD5"
->   SSLProtocols = "SSLv3 TLSv1 TLSv1.1 TLSv1.2"'
-```
-**Note**: Full documentation on Inerlock load balancer-specific options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/configuration.md).
 
-**NOTE**: (FIXME) If CONTROLLER_IP doesn't get substituted by actual name/IP in curl command, edit the command manually and substitute your local IP of controller.
+```
+$ docker exec -ti ucp-kv curl \
+  --cacert /etc/docker/ssl/ca.pem \
+  --cert /etc/docker/ssl/cert.pem \
+  --key /etc/docker/ssl/key.pem \
+  https://$CONTROLLER_IP:12379/v2/keys/interlock/v1/config -XPUT -d value='listenAddr = ":8080"
+dockerURL = "tcp://$CONTROLLER_IP:3376"
+tlsCaCert = "/certs/ca.pem"
+tlsCert = "/certs/cert.pem"
+tlsKey = "/certs/key.pem"
+
+[[Extensions]]
+  Name = "nginx"
+  ConfigPath = "/etc/conf/nginx.conf"
+  PidPath = "/etc/conf/nginx.pid"
+  BackendOverrideAddress = ""
+  ConnectTimeout = 5000
+  ServerTimeout = 10000
+  ClientTimeout = 10000
+  MaxConn = 1024
+  Port = 80
+  SyslogAddr = ""
+  NginxPlusEnabled = false
+  AdminUser = "admin"
+  AdminPass = ""
+  SSLCertPath = ""
+  SSLCert = ""
+  SSLPort = 443
+  SSLOpts = ""
+  User = "www-data"
+  WorkerProcesses = 2
+  RLimitNoFile = 65535
+  ProxyConnectTimeout = 600
+  ProxySendTimeout = 600
+  ProxyReadTimeout = 600
+  SendTimeout = 600
+  SSLCiphers = "HIGH:!aNULL:!MD5"
+  SSLProtocols = "SSLv3 TLSv1 TLSv1.1 TLSv1.2"'
+```
+
+**NOTE**: (FIXME) If CONTROLLER_IP doesn't get substituted by actual name/IP in curl command, edit the command manually and substitute your local IP of controller. 
 
  
-2. On the dedicated UCP node (**ucp-lb**), [install Docker Compose](https://docs.docker.com/compose/install/). 
+2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose in installed :
 
-3. On the dedicated UCP node (**ucp-lb**) , clone the [following gist](https://gist.github.com/nicolaka/ab6e128004af7cd3c7fa). 
-
-
-4. On the dedicated UCP node (**ucp-lb**), Export an environment variable called **CONTROLLER_IP**. This variable should be the IP address or the DNS name of one of the UCP controllers. **Note**: Make sure to use the DNS/IP that was listed as a SAN when you created your UCP controllers.
-
-	`$ export CONTROLLER_IP=ucp.enterprise.com`
-
-5. On the dedicated UCP node (**ucp-lb**), deploy interlock+nginx using the following docker-compose command:
-
-`$ docker-compose up -d`
-
-
-6. Confirm that interlock connected to the Swarm event stream:
 
 ```
-# docker-compose logs
-Attaching to nginxlb_nginx_1, nginxlb_interlock_1
-interlock_1 | time="2016-02-16T06:20:21Z" level=info msg="interlock 1.0.0 (57c4f86)"
-interlock_1 | time="2016-02-16T06:20:21Z" level=debug msg="using kv: addr=etcd://10.10.10.1:12379"
-interlock_1 | time="2016-02-16T06:20:21Z" level=debug msg="Trusting certs with subjects: [0\x181\x160\x14\x06\x03U\x04\x03\x13\rSwarm Root CA]"
-interlock_1 | time="2016-02-16T06:20:21Z" level=debug msg="configuring TLS for KV"
-interlock_1 | time="2016-02-16T06:20:21Z" level=debug msg="using tls for communication with docker"
-interlock_1 | time="2016-02-16T06:20:21Z" level=debug msg="docker client: url=tcp://10.0.20.65:2376"
-interlock_1 | time="2016-02-16T06:20:21Z" level=debug msg="loading extension: name=nginx configpath=/etc/conf/nginx.conf"
-interlock_1 | time="2016-02-16T06:20:21Z" level=debug msg="starting event handling"
+$ docker-compose version
+docker-compose version 1.6.0, build d99cad6
+docker-py version: 1.7.0
+CPython version: 2.7.6
+OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
+
 ```
+
+3. On the dedicated UCP node (**lb**) , clone the [following repo](https://github.com/nicolaka/interlock-lbs). **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
+
+
+```
+$ git clone https://github.com/nicolaka/interlock-lbs
+```
+
+4. On the dedicated UCP node (**lb**), export an environment variable called **CONTROLLER_IP**. This variable should be the FQDN of one of the UCP Controller. **Note**: Make sure to use the DNS/IP that was listed as a SAN when you created your UCP controllers.
+
+	`$ export CONTROLLER_IP=ucp.myenterprise.com`
+
+5. On the dedicated UCP node (**lb**), deploy Interlock+NGINX using the following docker-compose command:
+
+```
+$ cd ./interlock-lbs/interlock-nginx
+interlock-lbs/interlock-nginx$ docker-compose up -d
+```
+
+6. Confirm that Interlock connected to the Swarm event stream:
+
+
+```
+/interlock-lbs/interlock-nginx$ docker-compose logs
+Attaching to interlocknginx_nginx_1, interlocknginx_interlock_1
+interlock_1 | time="2016-02-21T04:12:28Z" level=info msg="interlock 1.0.0 (57c4f86)"
+interlock_1 | time="2016-02-21T04:12:28Z" level=debug msg="using kv: addr=etcd://10.10.10.11:12379"
+interlock_1 | time="2016-02-21T04:12:28Z" level=debug msg="Trusting certs with subjects: [0\x1e1\x1c0\x1a\x06\x03U\x04\x03\x13\x13UCP Cluster Root CA]"
+interlock_1 | time="2016-02-21T04:12:28Z" level=debug msg="configuring TLS for KV"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="using tls for communication with docker"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="docker client: url=tcp://10.0.20.65:3376"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="loading extension: name=nginx configpath=/etc/conf/nginx.conf"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="starting event handling"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="checking to reload"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg=reloading
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="updating load balancers"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="event received: type= id="
+interlock_1 | time="2016-02-21T04:12:29Z" level=info msg="configuration updated" ext=nginx
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="reload duration: 505.20ms"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="event received: type= id="
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="event received: type= id="
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="event received: type=start id=0964bc585e971c43b69d08b440d2175d37b9c533b7e48026044a5694a4abeb5a"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="inspecting container: id=0964bc585e971c43b69d08b440d2175d37b9c533b7e48026044a5694a4abeb5a"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="checking container labels: id=0964bc585e971c43b69d08b440d2175d37b9c533b7e48026044a5694a4abeb5a"
+interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="ignoring proxy container: id=0964bc585e971c43b69d08b440d2175d37b9c533b7e48026044a5694a4abeb5a"
+interlock_1 | time="2016-02-21T04:12:31Z" level=debug msg="event received: type=attach id=0964bc585e971c43b69d08b440d2175d37b9c533b7e48026044a5694a4abeb5a"
+interlock_1 | time="2016-02-21T04:12:31Z" level=debug msg="event received: type=attach id=a01eca3a526c9f3a7cac36c6ffd9ae01643f7e866da7a40a46a2eedc9b530f74"
+
+```
+
+
 ### 3B. Interlock and HAProxy
 
 The following steps provide a guideline to configuring the load-balancing solution using Interlock + HAProxy:
 
-1. On **any** controller nodes, update Interlock configs using a single curl command against UCP k/v store. Please make sure to use your substitute your own password for HAProxy by updating the `adminPass` value. 
+1. On **any** controller nodes, update Interlock configs using a single curl command against UCP k/v store. Please make sure to use your substitute your own password for HAProxy by updating the value of `adminPass`. 
+
 
 ```
-$ export CONTROLLER_IP=ucp.enterprise.com
-or
-$ export CONTROLLER_IP=10.10.10.1
+$ export CONTROLLER_IP= ucp.myenterprise.com
 ```
 
-followed by
+followed by:
 
 ```
+$ docker exec -ti ucp-kv curl \
+  --cacert /etc/docker/ssl/ca.pem \
+  --cert /etc/docker/ssl/cert.pem \
+  --key /etc/docker/ssl/key.pem \
+  https://$CONTROLLER_IP:12379/v2/keys/interlock/v1/config -XPUT -d value='listenAddr = ":8080"
+dockerURL = "tcp://$CONTROLLER_IP:2376"
+tlsCaCert = "/certs/ca.pem"
+tlsCert = "/certs/cert.pem"
+tlsKey = "/certs/key.pem"
 
-$ docker exec -ti ucp-kv curl --cacert /etc/docker/ssl/ca.pem --cert /etc/docker/ssl/cert.pem --key /etc/docker/ssl/key.pem https://$CONTROLLER_IP:12379/v2/keys/interlock/v1/config -XPUT -d value='listenAddr = ":8080" dockerURL = "tcp://$CONTROLLER_IP:2376" tlsCaCert = "/certs/ca.pem" tlsCert = "/certs/cert.pem" tlsKey = "/certs/key.pem" [[Extensions]]
-> name = "haproxy"
-> configPath = "/usr/local/etc/haproxy/haproxy.cfg"
-> pidPath = "/usr/local/etc/haproxy/haproxy.pid"
-> sslCert = ""
-> maxConn = 1024
-> port = 80
-> sslPort = 443
-> adminUser = "admin"
-> adminPass = "CHANGEME"'
+[[extensions]]
+name = "haproxy"
+configPath = "/usr/local/etc/haproxy/haproxy.cfg"
+pidPath = "/usr/local/etc/haproxy/haproxy.pid"
+sslCert = ""
+maxConn = 1024
+port = 80
+sslPort = 443
+adminUser = "admin"
+adminPass = "CHANGEME"'
+
 ```
 
 **Note**: Full documentation on Inerlock load balancer-specific options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/configuration.md).
@@ -328,6 +436,9 @@ interlock_1 | time="2016-02-16T07:03:34Z" level=debug msg=reloading
 interlock_1 | time="2016-02-16T07:03:34Z" level=debug msg="updating load balancers"
 interlock_1 | time="2016-02-16T07:03:34Z" level=debug msg="generating proxy config" ext=haproxy
 ```
+
+
+### Application Deployment
 
 Now that Interlock+LB are up and configured to listen on Swarm events. You can start deploying your applications on the UCP cluster. Interlock expects specific container metadata via labels. A complete list of all Interlock options can be found [here](FIXME). 
 
