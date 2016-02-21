@@ -2,26 +2,32 @@
 
 ### Introduction
 
-When developing applications, developers focus on functionality, speed, robustness, and quality of the application itself more than the ongoing operations. However, the shift to DevOps in application deployment practices force developers to own not only the application's development but also its deployment operations (developers are no longer pager-duty-free!). This shift also encouraged the operations teams to provide a common, scalable, and secure infrastructure that multiple developer teams can use to build, test, stage and deploy their applications.  
+When developing applications, developers focus on functionality, speed, robustness, and quality of the application itself more than the ongoing operations. However, the shift to DevOps in application deployment practices had forced developers to own not only the application's development but also its deployment operations (developers are no longer pager-duty-free!). This shift also encouraged the operations teams to provide a common, scalable, and secure infrastructure that multiple developer teams can use to build, test, stage and deploy their applications.  
 
-With the new shift, DevOps teams want to ensure that their applications are scalable. This means that these applications need to be broken up into, built, and advertised as smaller, decoupled _microservices_ that can be easily scaled across large compute clusters.  _microservices_ approach emphasized two key architectural considerations: **service load balancing** and **discovery**. This means that as developers build their applications to scale, they need to consider and design how each component ( _service_ ) is being discovered by other services within or from outside the cluster. Additionally, as these services scale horizontally across the cluster, how can they all be equally utilized for maximum load distribution. 
+With the new shift, DevOps teams want to ensure that their applications are scalable. This means that these applications need to be broken up into, built, and advertised as smaller, decoupled _microservices_ that can be easily scaled across large compute clusters. The _microservices_ approach emphasized two key architectural considerations: **service  discovery and load balancing**. This means that as developers build their applications to scale, they need to consider and design how each component (_service_) is being discovered by other services within or from outside the cluster. Additionally, as these services scale horizontally across the cluster, how can they all be equally utilized for maximum load distribution. 
 
-Docker Universal Control Plane (UCP) was built with this operational shift in mind. Docker UCP is available as part of Docker Datacenter to address both the developers’ requirement for a seamless path from development to production and IT operation’s requirement for building a secure and scalable Docker infrastructure. Docker Datacenter includes UCP, Trusted Registry and commercially supported Docker Engines. As an integrated platform, Docker Datacenter empowers application teams to build a Containers as a Service (CaaS) environment either on-premises or in a VPC.
+Docker Universal Control Plane (UCP) was built with this operational shift in mind. Docker UCP is available as part of Docker Datacenter to address both the developers’ requirement for a seamless path from development to production and IT operation’s requirement for building a secure and scalable Docker infrastructure. Docker Datacenter includes UCP, Trusted Registry and commercially supported Docker Engines. As an integrated platform, Docker Datacenter empowers application teams to build a Containers as a Service (CaaS) environment either on-premises or in the cloud.
 
 ### What You Will Learn
 
-In this reference architecture, you will learn how to setup your highly-available UCP cluster to enable dynamic built-in service discovery and load balancing. We will use a sample Dockerized application (Voting App) throughout this paper as a reference app. The sample app is composed of five (5) microservices as described below. The goals are to i) deploy the app on UCP , 2) ensure that all of its services are discoverable within the cluster, and 3) ensure two of its services are accessible and load-balanced from outside the cluster with pre-determined DNS names.
+In this reference architecture, you will learn how to setup your highly-available UCP cluster to enable dynamic built-in service discovery and load balancing. We will use a sample Dockerized application (Voting App) throughout this paper as a reference app. The sample app is composed of five (5) microservices as described below. The end goal is to:
 
-Sample App Architecture:
+* Deploy the app on UCP 
 
-* voting-app: A Python webapp which lets you vote between two options. (External DNS: vote.myenterprise.com)
-* result-app: A Node.js webapp which shows the results of the voting in real time
-* redis: A Redis queue which collects new votes
-*  worker: A Java worker which consumes votes and stores them in…
-* db: A Postgres database backed by a Docker volume
-* result-app: A Node.js webapp which shows the results of the voting in real time.  (External DNS: results.myenterprise.com)
+* Ensure that all of its services are discoverable within the cluster 
 
-Sample App Compose File:
+* Ensure two of its services are accessible and load-balanced from outside the cluster with pre-determined DNS names
+ 
+
+Sample Application Architecture:
+
+* **voting-app**: A Python webapp which lets you vote between two options. (External DNS: vote.myenterprise.com)
+* **result-app**: A Node.js webapp which shows the results of the voting in real time (External DNS: results.myenterprise.com)
+* **redis**: A Redis queue which collects new votes
+* **worker**: A Java worker which consumes votes and stores them in…
+* **db**: A Postgres database backed by a Docker volume
+
+Sample Application Docker Compose File:
 
 ```
 version: "2"
@@ -67,24 +73,29 @@ networks:
 ```
 
 ### Assumptions
-This reference architecture assumes that the reader already has a working understanding of the Docker Datacenter, in particular the following components: Docker Universal Control Plane, Swarm, and Compose.  If you are not familiar, please refer to the  following resources 
-- Basic understanding of [Docker Swarm](https://docs.docker.com/swarm) 
+This reference architecture assumes that the reader already has a working understanding of the Docker Datacenter, in particular the following components: Docker Universal Control Plane, Swarm, and Compose.  If you are not familiar, please refer to the  following resources:
+
 - Basic understanding of [Docker UCP](https://www.docker.com/products/docker-universal-control-plane)
+- Basic understanding of [Docker Swarm](https://docs.docker.com/swarm) 
 - Basic understanding of [Docker Compose](https://docs.docker.com/compose)
 - Basic understanding of common load balancing solutions such as [HAProxy](http://www.haproxy.org/) or [NGINX](https://www.nginx.com/)
 
 ### Requirements
-There are the software version requirements for this reference architecture.  Other variations have not been tested or validated.  For more details on software compatibility and interoperability go to http://www.docker.com/compatibility-maintenance 
-- Docker Compose 1.6.1
+There are software version requirements for this reference architecture.  Other variations have not been tested or validated.  For more details on software compatibility and interoperability please go to [Compatibility Matrix](http://www.docker.com/compatibility-maintenance) page.
+
 - Docker UCP 1.0.0
+- Docker Compose 1.6.1
 - Commercially supported Docker Engine 1.10
 
-
 ### Prerequisites
-For this reference architecture, you will need the following software deployed on the number of nodes outlined below.  For instructions on installation go [here](FIXME).
+For this reference architecture, you will need the following environment setup.  For instructions on installation go [here](FIXME).
+
 -  UCP is installed in HA mode ( at least 3 controllers).
--  UCP nodes are configured ( at least 3 nodes).
+-  UCP nodes are configured (at least 3 nodes).
 -  Multi-host networking is configured on all UCP nodes.
+
+![](images/lb_sd_reference_arch_base_env.png)
+
 
 
 ### Design Considerations
@@ -142,20 +153,13 @@ Docker 1.10 also introduced the concept of _network alias_. A network alias abst
 
   worker:
     image: docker/example-voting-app-worker
-	 links:
-      - db
-      - redis
     networks:
-      - back-tier
+      - voteapp
     network_aliases:
-      back-tier:
+      voteapp:
 	    - workers			
 
 <snippet>
-
-networks:
-  front-tier:
-  back-tier:
 
 ```
 
