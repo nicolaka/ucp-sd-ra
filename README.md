@@ -90,8 +90,8 @@ There are software version requirements for this reference architecture.  Other 
 ### Prerequisites
 For this reference architecture, you will need the following environment setup.  For instructions on installation go [here](FIXME).
 
--  Atleast 3 UCP Controllers Nodes.
--  Atleast 3 UCP Cluster Nodes. 
+-  At least 3 UCP Controllers Nodes.
+-  At least 3 UCP Cluster Nodes. 
 -  A designated DNS record for UCP (e.g ucp.myenterprise.com).
 
 
@@ -100,14 +100,14 @@ For this reference architecture, you will need the following environment setup. 
 
 ### Design Considerations
 
-There are multiple considerations for designing production-ready infrastructure using Docker Datacenter.
+There are multiple considerations for designing production-ready infrastructure using Docker Datacenter:
 
-From an operational point of view, it is important to ensure that UCP itself is highly available so that any failure in one or more UCP controllers wouldn't result in inability to access the UCP controller. Additionally, providing a scalable, secure, and stateless load-balancing service for **all** applications is important that as the application scales, load-balancing can dynamically ensure that traffic is equally distributed across all of the containers providing these services. 
+From an operational point of view, it is important to ensure that UCP itself is highly available so that any failure in one or more UCP controllers wouldn't result in an inability to access the UCP controller. Additionally, providing a scalable, secure, and stateless load-balancing service for **all** applications is important so that as the application scales, load-balancing can dynamically ensure that traffic is equally distributed across all of the containers providing these services. 
 
-From a developer's point of view, it is important to ensure that any design should integrate with the established developer workflow. For example, if developers use Docker Compose to build their applications locally during development, the new design should ensure Compose files can also be used to deploy to production. Either directly by the developers or through a coordinate sign-off process to the deployment operations team. Additionally, it's important to ensure that each service deployed on Docker Datacenter  is easily discoverable and reachable by other services that are part of the same app, regardless where the containers providing these service are deployed in the cluster. This means that developers can assume that moving their apps from local development to production cluster will not break the application. Finally, it is crucial to ensure that the developers' apps are easily discoverable and accessible from outside the cluster  regardless which cluster or cluster node they end up being deployed to. This means that as the app moves from one cluster to another, developers should not worry about losing access to their applications.
+From a developer's point of view, it is important to ensure that any design should integrate with the established developer workflow. For example, if developers use Docker Compose to build their applications locally during development, the new design should ensure Compose files can also be used to deploy to production. Either directly by the developers or through a coordinated sign-off process to the deployment operations team. Additionally, it is important to ensure that each service deployed on Docker Datacenter is easily discoverable and reachable by other services that are part of the same app, regardless where the containers providing these service are deployed in the cluster. This means that developers can assume that moving their apps from local development to production cluster will not break the application. Finally, it is crucial to ensure that the developers' apps are easily discoverable and accessible from outside the cluster  regardless which cluster or cluster node they end up being deployed to. This means that as the app moves from one cluster to another, developers should not worry about losing access to their applications.
 
 
-In summary, there are three key design considerations that need to be addressed to ensure the developers and operations' requirements are met
+In summary, there are three key design considerations that need to be addressed to ensure the developers and operations' requirements are met:
 
 -  UCP High-Availability
 -  Internal Service Discovery + Load Distribution
@@ -120,19 +120,17 @@ In the following sections, we will go through each of the three design considera
 
 ## 1. UCP High-Availability 
 
-Docker UCP supports high availability (HA) by replicating the UCP controller along with the underlying Swarm manager and key-value store containers within your cluster. When you deploy UCP, you start by deploying the first UCP controller followed by the replicas. Functionally, all controllers are the same. HA requires at least three (3) controllers, a primary and two replicas , to be configured on three separate nodes. It is not recommended to run a cluster with only the primary controller and a single replica as this results in a split-brain scenario (e.g each controller thinks it is the master controller in the luster). Failure tolerance for HA UCP deployments can be summarized as follows:
+Docker UCP supports high availability (HA) by replicating the UCP controller along with the underlying Swarm manager and key-value store containers within your cluster. When you deploy UCP, you start by deploying the first UCP controller followed by the replicas. Functionally, all controllers are the same. HA requires at least three (3) controllers, a primary and two replicas , to be configured on three separate nodes. It is not recommended to run a cluster with only the primary controller and a single replica as this results in a split-brain scenario (e.g each controller thinks it is the master controller in the cluster). Failure tolerance for HA UCP deployments can be summarized as follows:
 
 | Number Of Deployed Controllers | Failure Tolerance |
 |-----------------------|-------------------|
 | 1                     | 0                 |
 | 3                     | 1                 |
 | 5                     | 2                 |
-| 7                    | 3                 |
-| ...                   | ...              |
+| 7                     | 3                 |
 
 
-
-UCP controllers are stateless by design. All UCP controllers accept requests, and then forward them to the underlying Swarm Manager. Any controller failure when UCP is deployed in HA will not have any impact on your UCP cluster, both from UCP web access (UI) or underlying cluster management perspectives (CLI). However, if you're statically mapping a DNS record to a primary UCP controller's IP address and that controller goes down, you will not be able to reach UCP. For that reason, it is recommended to deploy a UCP controller load balancer. An upstream load balancer can distribute all UCP requests to all three controllers behind it. As a sample reference, an HAProxy loadbalancer config file is provided below. Similarly, if you're deploying UCP in a public cloud, you can create a loadbalancer directly from teh cloud provider ( AWS's ELB or Azure's Load Balancer)
+UCP controllers are stateless by design. All UCP controllers accept requests, and then forward them to the underlying Swarm Manager. Any controller failure when UCP is deployed in HA will not have any impact on your UCP cluster, both from UCP web access (UI) or underlying cluster management perspectives (CLI). However, if you are statically mapping a DNS record to a primary UCP controller's IP address and that controller goes down, you will not be able to reach UCP. For that reason, it is recommended to deploy a UCP controller load balancer. An upstream load balancer can distribute all UCP requests to all three controllers behind it. As a sample reference, an HAProxy loadbalancer config file is provided below. Similarly, if you're deploying UCP in a public cloud, you can create a loadbalancer directly from the cloud provider (AWS's ELB or Azure's Load Balancer)
 
 ![](images/lb_sd_reference_arch_ucp_ha.png)
 
@@ -164,13 +162,13 @@ backend servers
 
 ```
 
-Here are some recommended UCP controller loadbalancer configuration:
+Here are some recommended UCP controller and load balancer configurations:
 
 **Health Checks**: The load balancer can use UCP's API endpoint `/_ping` to ensure that each of the controllers is healthy. A `200 OK` response means that the controller is healthy and it can receive traffic. 
 
-**Listeners**:  The load balancer should be configured to load balance using TCP port 80 and 443 to all three nodes in the cluster. The load balancer should **not** terminate/reestablish HTTPS connections due to mutual TLS connection requirement in order to use Docker Client with UCP. (FIXME) 
+**Listeners**:  The load balancer should be configured to load balance using TCP port 80 and 443 to all three nodes in the cluster. The load balancer should **not** terminate/reestablish HTTPS connections due to mutual TLS connection requirement in order to use Docker Client with UCP. **(FIXME)** 
 
-**DNS**: a DNS record should be mapped to the load balancer itself( e.g VIP) and not to any individual controller.
+**DNS**: a DNS record should be mapped to the load balancer itself (e.g VIP) and not to any individual controller.
 
 **IPs**: The load balancer can load balance to the controller's  private or public IPs. 
 
@@ -216,15 +214,15 @@ We can now deploy the app on UCP using Docker Compose. The `worker` service is t
 
 ![](images/lb_sd_reference_arch_intra_sd.png)
 
-**Load-Balancing**: Currently the embedded DNS-based service discovery only pins traffic to a single healthy container that is part of a network alias.(FIXME)
+**Load-Balancing**: Currently the embedded DNS-based service discovery only pins traffic to a single healthy container that is part of a network alias.**(FIXME)**
 
 ## 3. External Service Discovery + Load Distribution 
 
-Some services are designed to be accessed from outside the UCP cluster (typically by a DNS name) whether these services need to be accessed by other services in a different cluster or by external public users/services. To access these services, you typically need to create a DNS record for each service, and map it to the exact node that that service is running on. If you also need to load balance across multiple containers, you need to add a load balancer and reconfigure it every time a container comes up/goes down. This process is tedious and unscalable. 
+Some services are designed to be accessed from outside the UCP cluster (typically by a DNS name) either as services that need to be accessed by other services in a different cluster or by external public users/services. To access these services, you typically need to create a DNS record for each service, and map it to the exact node that that service is running on. If you also need to load balance across multiple containers, you need to add a load balancer and reconfigure it every time a container comes up/goes down. This process is tedious and unscalable. 
 
 An easier, more scalable, and automated solution to enable external service discovery and load balancing is to use an event-driven service registrator that automatically updates a load-balancer's config as containers go up or down in your UCP cluster. This can be achieved by combining [Interlock](www.github.com/ehazlett/interlock) with your preferred load balancer [HAProxy](https://hub.docker.com/_/haproxy/) or [NGINX](https://hub.docker.com/_/nginx/).
 
-Interlock is containerized, event-driven tool that connects to UCP Controllers and watches for events. Events can be containers being spun up or going down. It also looks for certain metadata that these containers have. These can be hostnames or labels that you configure the container with. It then uses the metadata to register/de-register these containers to a load balancing backend. The load-balancer uses updated backend configs to direct incoming requests to healthy containers. Both Interlock and the load balancer containers are stateless, and hence can be scaled horizontally across multiple nodes to provide a highly-available load balancing services for all deployed applications.
+Interlock is a containerized, event-driven tool that connects to the UCP controllers and watches for events. In this case, events can be containers being spun up or going down. Interlock also looks for certain metadata that these containers have. These can be hostnames or labels that you configure the container with. It then uses the metadata to register/de-register these containers to a load balancing backend. The load balancer uses updated backend configs to direct incoming requests to healthy containers. Both Interlock and the load balancer containers are stateless, and hence can be scaled horizontally across multiple nodes to provide a highly-available load balancing services for all deployed applications.
 
 
 ## How it Works:
