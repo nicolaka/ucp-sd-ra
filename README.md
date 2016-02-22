@@ -120,11 +120,9 @@ In the following sections, we will go through each of the three design considera
 
 ## 1. UCP High-Availability 
 
-<<<<<<< HEAD
+
 Docker UCP supports high availability (HA) by replicating the UCP controller along with the underlying Swarm manager and key-value store containers within your cluster. When you deploy UCP, you start by deploying the first UCP controller followed by the replicas. Functionally, all controllers are the same. HA requires at least three (3) controllers, a primary and two replicas , to be configured on three separate nodes. It is not recommended to run a cluster with only the primary controller and a single replica as this results in a split-brain scenario (e.g each controller thinks it is the master controller in the cluster). Failure tolerance for UCP HA deployments can be summarized as follows:
-=======
-Docker UCP supports high availability (HA) by replicating the UCP controller along with the underlying Swarm manager and key-value store containers within your cluster. When you deploy UCP, you start by deploying the first UCP controller followed by the replicas. Functionally, all controllers are the same. HA requires at least three (3) controllers, a primary and two replicas , to be configured on three separate nodes. It is not recommended to run a cluster with only the primary controller and a single replica as this results in a split-brain scenario (e.g each controller thinks it is the master controller in the cluster). Failure tolerance for HA UCP deployments can be summarized as follows:
->>>>>>> d96c477346d9a14dcaafbf4369f5c55d94d461ab
+
 
 | Number Of Deployed Controllers | Failure Tolerance |
 |-----------------------|-------------------|
@@ -134,12 +132,8 @@ Docker UCP supports high availability (HA) by replicating the UCP controller alo
 | 7                     | 3                 |
 
 
-<<<<<<< HEAD
-
 UCP controllers are stateless by design. All UCP controllers accept requests, and then forward them to the underlying Swarm Manager. Any controller failure when UCP is deployed in HA will not have any impact on your UCP cluster, both from UCP web access (UI) or underlying cluster management perspectives (CLI). However, if you're statically mapping a DNS record to a primary UCP controller's IP address and that controller goes down, you will not be able to reach UCP. For that reason, it is recommended to deploy a UCP controller load balancer. An upstream load balancer can distribute all UCP requests to all three controllers behind it. As a sample reference, an HAProxy loadbalancer config file is provided below. Similarly, if you're deploying UCP in a public cloud, you can create a loadbalancer directly from the cloud provider ( AWS's ELB or Azure's Load Balancer)
-=======
-UCP controllers are stateless by design. All UCP controllers accept requests, and then forward them to the underlying Swarm Manager. Any controller failure when UCP is deployed in HA will not have any impact on your UCP cluster, both from UCP web access (UI) or underlying cluster management perspectives (CLI). However, if you are statically mapping a DNS record to a primary UCP controller's IP address and that controller goes down, you will not be able to reach UCP. For that reason, it is recommended to deploy a UCP controller load balancer. An upstream load balancer can distribute all UCP requests to all three controllers behind it. As a sample reference, an HAProxy loadbalancer config file is provided below. Similarly, if you're deploying UCP in a public cloud, you can create a loadbalancer directly from the cloud provider (AWS's ELB or Azure's Load Balancer)
->>>>>>> d96c477346d9a14dcaafbf4369f5c55d94d461ab
+
 
 ![](images/lb_sd_reference_arch_ucp_ha.png)
 
@@ -254,11 +248,10 @@ The above steps provide the necessary service registration and load balancing so
 
 ### 3A. Interlock and NGINX/NGINX+
 
-<<<<<<< HEAD
+
 The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX/NGINX+:
-=======
+
 The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX/NGINX Plus:
->>>>>>> d96c477346d9a14dcaafbf4369f5c55d94d461ab
 
 1. On **any** UCP Controller nodes, update Interlock configs using a single curl command against UCP key/value store. **Note**: We are using a sample NGINX config, full documentation for NGINX options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/configuration.md). 
 
@@ -420,9 +413,9 @@ adminPass = "CHANGEME"'
 
 **NOTE**: (FIXME) If CONTROLLER_IP doesn't get substituted by actual name/IP in curl command, edit the command manually and substitute your local IP of controller.
 
-<<<<<<< HEAD
+
 2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose is installed: 
-=======
+
 2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose is installed :
 >>>>>>> d96c477346d9a14dcaafbf4369f5c55d94d461ab
 
