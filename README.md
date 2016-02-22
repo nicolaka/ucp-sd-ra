@@ -253,7 +253,7 @@ The following steps provide a guideline to configuring the load-balancing soluti
 
 The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX/NGINX Plus:
 
-1. On **any** UCP Controller nodes, update Interlock configs using a single curl command against UCP key/value store. **Note**: We are using a sample NGINX config, full documentation for NGINX options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/configuration.md). 
+1.  On **any** UCP Controller nodes, update Interlock configs using a single curl command against UCP key/value store. **Note**: We are using a sample NGINX config, full documentation for NGINX options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/configuration.md). 
 
 **Note:** You will notice that we're using the FQDN of UCP to load Interlock's configs to the K/V store. This will ensure that Interlock can reach and listen to events from any any controller. However, Interlock needs to access the UCP on port 2376 (default port of the Swarm Manager container). Therefore, you need to ensure that the UCP Controller Loadbalancer will allow traffic to that port to reach the controllers. Alternatively, you can configure an internal UCP loadbalanacer that doesn't restrict any ports to pass to the UCP controllers. 
 
@@ -305,8 +305,7 @@ tlsKey = "/certs/key.pem"
 
 **NOTE**: (FIXME) If CONTROLLER_IP doesn't get substituted by actual name/IP in curl command, edit the command manually and substitute your local IP of controller. 
 
- 
-2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose in installed :
+2.  On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose in installed :
 
 
 ```
@@ -318,25 +317,25 @@ OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
 
 ```
 
-3. On the dedicated UCP node (**lb**) , clone the [following repo](https://github.com/nicolaka/interlock-lbs). **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
+3.  On the dedicated UCP node (**lb**) , clone the [following repo](https://github.com/nicolaka/interlock-lbs). **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
 
 
 ```
 $ git clone https://github.com/nicolaka/interlock-lbs
 ```
 
-4. On the dedicated UCP node (**lb**), export an environment variable called **CONTROLLER_IP**. This variable should be the FQDN of UCP Controller.
+4.  On the dedicated UCP node (**lb**), export an environment variable called **CONTROLLER_IP**. This variable should be the FQDN of UCP Controller.
 
 	`$ export CONTROLLER_IP=ucp.myenterprise.com`
 
-5. On the dedicated UCP node (**lb**), deploy Interlock+NGINX using the following docker-compose command:
+5.  On the dedicated UCP node (**lb**), deploy Interlock+NGINX using the following docker-compose command:
 
 ```
 $ cd ./interlock-lbs/interlock-nginx
 interlock-lbs/interlock-nginx$ docker-compose up -d
 ```
 
-6. Confirm that Interlock is connected to the Swarm event stream:
+6.  Confirm that Interlock is connected to the Swarm event stream:
 
 
 ```
@@ -416,10 +415,6 @@ adminPass = "CHANGEME"'
 
 2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose is installed: 
 
-2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose is installed :
->>>>>>> d96c477346d9a14dcaafbf4369f5c55d94d461ab
-
-
 ```
 $ docker-compose version
 docker-compose version 1.6.0, build d99cad6
@@ -480,158 +475,155 @@ In our sample app, we want to expose two services externally. These services are
 1. From your local machine, download a UCP client bundle. Instructions can be found [here](FIXME).
 
 2. Ensure that you have Docker Compose installed on your local environment. 
+	
+	```
+	$ docker-compose version
+	docker-compose version 1.6.0, build d99cad6
+	docker-py version: 1.7.0
+	CPython version: 2.7.6
+	OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
+	
+	```
 
-```
-$ docker-compose version
-docker-compose version 1.6.0, build d99cad6
-docker-py version: 1.7.0
-CPython version: 2.7.6
-OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
 
-```
+3. Ensure that you're pointing your local Docker client to the UCP controller:
 
-
-2. Ensure that you're pointing your local Docker client to the UCP controller:
-
-```
-$ cd /path/to/ucp-bundle-admin
-ucp-bundle-admin$ source env.sh
-```
+	```
+	$ cd /path/to/ucp-bundle-admin
+	ucp-bundle-admin$ source env.sh
+	```
 
 Followed by:
 
 ```
-ucp-bundle-admin$ docker version
-Client:
- Version:      1.10.1
- API version:  1.22
- Go version:   go1.5.3
- Git commit:   9e83765
- Built:        Thu Feb 11 19:27:08 2016
- OS/Arch:      linux/amd64
-
-Server:
- Version:      ucp/1.0.0
- API version:  1.22
- Go version:   go1.5.3
- Git commit:   5c4f6d8
- Built:
- OS/Arch:      linux/amd64
- 
- 
+	ucp-bundle-admin$ docker version
+	Client:
+	 Version:      1.10.1
+	 API version:  1.22
+	 Go version:   go1.5.3
+	 Git commit:   9e83765
+	 Built:        Thu Feb 11 19:27:08 2016
+	 OS/Arch:      linux/amd64
+	
+	Server:
+	 Version:      ucp/1.0.0
+	 API version:  1.22
+	 Go version:   go1.5.3
+	 Git commit:   5c4f6d8
+	 Built:
+	 OS/Arch:      linux/amd64
 ```
 
-3. We need to adjust the app's Compose file to add the necessary Interlock labels. 
+4.  We need to adjust the app's Compose file to add the necessary Interlock labels. 
 
 For `voting-app` we add the following:
 
 
-```
-    labels:
-     interlock.hostname: "vote"
-     interlock.domain:   "myenterprise.com"
-```
+	```
+	    labels:
+	     interlock.hostname: "vote"
+	     interlock.domain:   "myenterprise.com"
+	```
 
 
 For `results-app` we add the following:
 
-```
-    labels:
-     interlock.hostname: "results"
-     interlock.domain:   "myenterprise.com"
-```
+	```
+	    labels:
+	     interlock.hostname: "results"
+	     interlock.domain:   "myenterprise.com"
+	```
 
 The complete docker-compose file now should like this :
 
-```
-version: "2"
+	```
+	version: "2"
+	
+	services:
+	  voting-app:
+	    image: docker/example-voting-app-voting-app
+	    ports:
+	      - "80"
+	    networks:
+	      - voteapp
+	    labels:
+	     interlock.hostname: "vote"
+	     interlock.domain:   "myenterprise.com"
+	  result-app:
+	    image: docker/example-voting-app-result-app
+	    ports:
+	      - "80"
+	    networks:
+	      - voteapp
+	    labels:
+	     interlock.hostname: "results"
+	     interlock.domain:   "myenterprise.com"
+	  worker:
+	    image: docker/example-voting-app-worker
+	    networks:
+	      - voteapp
+	    network_aliases:
+	      voteapp:
+		    - workers	
+	  redis:
+	    image: redis
+	    ports:
+	      - "6379"
+	    networks:
+	      - voteapp
+	    container_name: redis
+	
+	  db:
+	    image: postgres:9.4
+	    volumes:
+	      - "db-data:/var/lib/postgresql/data"
+	    networks:
+	      - voteapp
+	    container_name: db
+	volumes:
+	  db-data:
+	
+	networks:
+	  voteapp:
+	```
+5. Deploy the app on UCP using Docker Compose:
 
-services:
-  voting-app:
-    image: docker/example-voting-app-voting-app
-    ports:
-      - "80"
-    networks:
-      - voteapp
-    labels:
-     interlock.hostname: "vote"
-     interlock.domain:   "myenterprise.com"
-  result-app:
-    image: docker/example-voting-app-result-app
-    ports:
-      - "80"
-    networks:
-      - voteapp
-    labels:
-     interlock.hostname: "results"
-     interlock.domain:   "myenterprise.com"
-  worker:
-    image: docker/example-voting-app-worker
-    networks:
-      - voteapp
-    network_aliases:
-      voteapp:
-	    - workers	
-  redis:
-    image: redis
-    ports:
-      - "6379"
-    networks:
-      - voteapp
-    container_name: redis
+	```
+	voteapps$ docker-compose up -d
+	```
 
-  db:
-    image: postgres:9.4
-    volumes:
-      - "db-data:/var/lib/postgresql/data"
-    networks:
-      - voteapp
-    container_name: db
-volumes:
-  db-data:
+6. On the **lb**, confirm that Interlock registered the apps with the load balancer by looking at its logs. You should see the "restarted proxy container" message if Interlock registered the container successfully.
 
-networks:
-  voteapp:
-```
+	
+	```
+	interlock-lbs/interlock-haproxy$ docker-compose logs
+	
+	interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="adding host name=vote_myenterprise_com domain=vote.myenterprise.com" ext=haproxy
+	interlock_1 | time="2016-02-21T05:09:54Z" level=info msg="configuration updated" ext=haproxy
+	interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="dropping SYN packets to trigger client re-send" ext=haproxy
+	interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="&{/sbin/iptables [/sbin/iptables -I INPUT -p tcp --dport 80 --syn -j DROP] []  <nil> <nil> <nil> [] <nil> <nil> <nil> <nil> false [] [] [] [] <nil>}" ext=haproxy
+	interlock_1 | time="2016-02-21T05:09:54Z" level=warning msg="error signaling clients to resend; you will notice dropped packets: exit status 3" ext=haproxy
+	interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="event received: type= id="
+	interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="event received: type=kill id=608a397a7288d26932d3d83a912b1172a085c09d0eaf0d48be54dd282f3d3d49"
+	interlock_1 | time="2016-02-21T05:09:56Z" level=info msg="restarted proxy container: id=608a397a7288 name=/lb/interlockhaproxy_haproxy_1" ext=haproxy
+	```
 
-4. Deploy the app on UCP using Docker Compose:
+7. You can now access the app by going to http://vote.myenterprise.com or http://results.myenterprise.com.
 
-```
-voteapps$ docker-compose up -d
-```
+8.  If you need to scale the voting-app service, you can simply scale it using docker-compose. Interlock will add the newly added container to the voting-app backend. For example, if you're using HAProxy, you can see that the containers were added to the correct backend by going to the `http://vote.myenterprise.com/haproxy?stats`.
 
-5. On the **lb**, confirm that Interlock registered the apps with the load balancer by looking at its logs. You should see the "restarted proxy container" message if Interlock registered the container successfully.
-
-
-```
-interlock-lbs/interlock-haproxy$ docker-compose logs
-
-interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="adding host name=vote_myenterprise_com domain=vote.myenterprise.com" ext=haproxy
-interlock_1 | time="2016-02-21T05:09:54Z" level=info msg="configuration updated" ext=haproxy
-interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="dropping SYN packets to trigger client re-send" ext=haproxy
-interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="&{/sbin/iptables [/sbin/iptables -I INPUT -p tcp --dport 80 --syn -j DROP] []  <nil> <nil> <nil> [] <nil> <nil> <nil> <nil> false [] [] [] [] <nil>}" ext=haproxy
-interlock_1 | time="2016-02-21T05:09:54Z" level=warning msg="error signaling clients to resend; you will notice dropped packets: exit status 3" ext=haproxy
-interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="event received: type= id="
-interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="event received: type=kill id=608a397a7288d26932d3d83a912b1172a085c09d0eaf0d48be54dd282f3d3d49"
-interlock_1 | time="2016-02-21T05:09:56Z" level=info msg="restarted proxy container: id=608a397a7288 name=/lb/interlockhaproxy_haproxy_1" ext=haproxy
-```
-
-6. You can now access the app by going to http://vote.myenterprise.com or http://results.myenterprise.com.
-
-7. If you need to scale the voting-app service, you can simply scale it using docker-compose. Interlock will add the newly added container to the voting-app backend. For example, if you're using HAProxy, you can see that the containers were added to the correct backend by going to the `http://vote.myenterprise.com/haproxy?stats`.
-
-```
-$ docker-compose scale voting-app=10
-Creating and starting 2 ... done
-Creating and starting 3 ... done
-Creating and starting 4 ... done
-Creating and starting 5 ... done
-Creating and starting 6 ... done
-Creating and starting 7 ... done
-Creating and starting 8 ... done
-Creating and starting 9 ... done
-Creating and starting 10 ... done
-```
+	```
+	$ docker-compose scale voting-app=10
+	Creating and starting 2 ... done
+	Creating and starting 3 ... done
+	Creating and starting 4 ... done
+	Creating and starting 5 ... done
+	Creating and starting 6 ... done
+	Creating and starting 7 ... done
+	Creating and starting 8 ... done
+	Creating and starting 9 ... done
+	Creating and starting 10 ... done
+	```
 
 ![](images/haproxy.png)
 
