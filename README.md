@@ -217,7 +217,6 @@ We can now deploy the app on UCP using Docker Compose. The `worker` service is t
 
 ![](images/lb_sd_reference_arch_intra_sd.png)
 
-**Load-Balancing**: Currently the embedded DNS-based service discovery only pins traffic to a single healthy container that is part of a network alias.**(FIXME)**
 
 ## 3. External Service Discovery + Load Distribution 
 
