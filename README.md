@@ -19,7 +19,7 @@ In this reference architecture, you will learn how to setup your highly-availabl
 * Ensure two of its services are accessible and load-balanced from outside the cluster with pre-determined DNS names
  
 
-Sample Application Architecture:
+**Sample Application Architecture:**
 
 * **voting-app**: A Python webapp which lets you vote between two options. (External DNS: vote.myenterprise.com)
 * **result-app**: A Node.js webapp which shows the results of the voting in real time (External DNS: results.myenterprise.com)
@@ -27,7 +27,7 @@ Sample Application Architecture:
 * **worker**: A Java worker which consumes votes and stores them in…
 * **db**: A Postgres database backed by a Docker volume
 
-Sample Application Docker Compose File:
+**Sample Application Docker Compose File:**
 
 ```
 version: "2"
@@ -120,7 +120,7 @@ In the following sections, we will go through each of the three design considera
 
 ## 1. UCP High-Availability 
 
-Docker UCP supports high availability (HA) by replicating the UCP controller along with the underlying Swarm manager and key-value store containers within your cluster. When you deploy UCP, you start by deploying the first UCP controller followed by the replicas. Functionally, all controllers are the same. HA requires at least three (3) controllers, a primary and two replicas , to be configured on three separate nodes. It is not recommended to run a cluster with only the primary controller and a single replica as this results in a split-brain scenario (e.g each controller thinks it is the master controller in the luster). Failure tolerance for HA UCP deployments can be summarized as follows:
+Docker UCP supports high availability (HA) by replicating the UCP controller along with the underlying Swarm manager and key-value store containers within your cluster. When you deploy UCP, you start by deploying the first UCP controller followed by the replicas. Functionally, all controllers are the same. HA requires at least three (3) controllers, a primary and two replicas , to be configured on three separate nodes. It is not recommended to run a cluster with only the primary controller and a single replica as this results in a split-brain scenario (e.g each controller thinks it is the master controller in the cluster). Failure tolerance for UCP HA deployments can be summarized as follows:
 
 | Number Of Deployed Controllers | Failure Tolerance |
 |-----------------------|-------------------|
@@ -132,7 +132,7 @@ Docker UCP supports high availability (HA) by replicating the UCP controller alo
 
 
 
-UCP controllers are stateless by design. All UCP controllers accept requests, and then forward them to the underlying Swarm Manager. Any controller failure when UCP is deployed in HA will not have any impact on your UCP cluster, both from UCP web access (UI) or underlying cluster management perspectives (CLI). However, if you're statically mapping a DNS record to a primary UCP controller's IP address and that controller goes down, you will not be able to reach UCP. For that reason, it is recommended to deploy a UCP controller load balancer. An upstream load balancer can distribute all UCP requests to all three controllers behind it. As a sample reference, an HAProxy loadbalancer config file is provided below. Similarly, if you're deploying UCP in a public cloud, you can create a loadbalancer directly from teh cloud provider ( AWS's ELB or Azure's Load Balancer)
+UCP controllers are stateless by design. All UCP controllers accept requests, and then forward them to the underlying Swarm Manager. Any controller failure when UCP is deployed in HA will not have any impact on your UCP cluster, both from UCP web access (UI) or underlying cluster management perspectives (CLI). However, if you're statically mapping a DNS record to a primary UCP controller's IP address and that controller goes down, you will not be able to reach UCP. For that reason, it is recommended to deploy a UCP controller load balancer. An upstream load balancer can distribute all UCP requests to all three controllers behind it. As a sample reference, an HAProxy loadbalancer config file is provided below. Similarly, if you're deploying UCP in a public cloud, you can create a loadbalancer directly from the cloud provider ( AWS's ELB or Azure's Load Balancer)
 
 ![](images/lb_sd_reference_arch_ucp_ha.png)
 
@@ -247,9 +247,11 @@ The above steps provide the necessary service resgistration and loadbalancing so
 
 ### 3A. Interlock and NGINX/NGINX+
 
-The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX Plus:
+The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX/NGINX+:
 
-1. On **any** UCP Controller nodes, update Interlock configs using a single curl command against UCP key/value store. **Note**: We are using a sample NGINX config, full documentation for NGINX options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/configuration.md).
+1. On **any** UCP Controller nodes, update Interlock configs using a single curl command against UCP key/value store. **Note**: We are using a sample NGINX config, full documentation for NGINX options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/configuration.md). 
+
+**Note:** You will notice that we're using the FQDN of UCP to load Interlock's configs to the K/V store. This will ensure that Interlock can reach and listen to events from any any controller. However, Interlock needs to access the UCP on port 2376 (default port of the Swarm Manager container). Therefore, you need to ensure that the UCP Controller Loadbalancer will allow traffic to that port to reach the controllers. Alternatively, you can configure an internal UCP loadbalanacer that doesn't restrict any ports to pass to the UCP controllers. 
 
 ```
 $ export CONTROLLER_IP= ucp.myenterprise.com
@@ -319,7 +321,7 @@ OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
 $ git clone https://github.com/nicolaka/interlock-lbs
 ```
 
-4. On the dedicated UCP node (**lb**), export an environment variable called **CONTROLLER_IP**. This variable should be the FQDN of one of the UCP Controller. **Note**: Make sure to use the DNS/IP that was listed as a SAN when you created your UCP controllers.
+4. On the dedicated UCP node (**lb**), export an environment variable called **CONTROLLER_IP**. This variable should be the FQDN of UCP Controller.
 
 	`$ export CONTROLLER_IP=ucp.myenterprise.com`
 
@@ -372,6 +374,8 @@ The following steps provide a guideline to configuring the load-balancing soluti
 
 **Note**: We are using a sample HAProxy config, Full documentation on HAProxy options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/configuration.md).
 
+**Note:** You will notice that we're using the FQDN of UCP to load Interlock's configs to the K/V store. This will ensure that Interlock can reach and listen to events from any any controller. However, Interlock needs to access the UCP on port 2376 (default port of the Swarm Manager container). Therefore, you need to ensure that the UCP Controller Loadbalancer will allow traffic to that port. Alternatively, you can configure an internal UCP loadbalanacer that doesn't restrict any ports to pass to the UCP controllers.
+
 ```
 $ export CONTROLLER_IP=ucp.myenterprise.com
 ```
@@ -405,7 +409,7 @@ adminPass = "CHANGEME"'
 
 **NOTE**: (FIXME) If CONTROLLER_IP doesn't get substituted by actual name/IP in curl command, edit the command manually and substitute your local IP of controller.
 
-2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose in installed :
+2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose is installed: 
 
 
 ```
@@ -417,7 +421,7 @@ OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
 
 ```
 
-3. On the dedicated UCP node (**lb**) , clone the [following repo](https://github.com/nicolaka/interlock-lbs).
+3. On the dedicated UCP node (**lb**), clone the [following repo](https://github.com/nicolaka/interlock-lbs).
 
 
 ```
@@ -463,9 +467,21 @@ interlock_1 | time="2016-02-21T04:51:04Z" level=info msg="configuration updated"
 
 Now that Interlock+LB are up and configured to listen on Swarm events. You can start deploying your applications on the UCP cluster. Interlock expects specific container metadata via labels. A complete list of all Interlock options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/interlock_data.md). 
 
-In our sample app, we want to expose two services externally. These services are `voting-app` and `results-app`. For interlock to register these services as backends for the load balancer, we need to provide additional container labels. In our case, we want `voting-app` to be registered as `vote.myenterprise.com` and `results-app` as `results.myenterprise.com`. The DNS records mapped to the IP addrress of (**lb**). You may also map a wildcard DNS record to the **lb**. To configure and deploy the app, follow the below steps:
+In our sample app, we want to expose two services externally. These services are `voting-app` and `results-app`. For interlock to register these services as backends for the load balancer, we need to provide additional container labels. In our case, we want `voting-app` to be registered as `vote.myenterprise.com` and `results-app` as `results.myenterprise.com`. The DNS records need to be mapped to the IP addrress of (**lb**). You may also map a wildcard DNS record to the **lb**. To configure and deploy the app, follow the below steps:
 
 1. From your local machine, download a UCP client bundle. Instructions can be found [here](FIXME).
+
+2. Ensure that you have Docker Compose installed on your local environment. 
+
+```
+$ docker-compose version
+docker-compose version 1.6.0, build d99cad6
+docker-py version: 1.7.0
+CPython version: 2.7.6
+OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
+
+```
+
 
 2. Ensure that you're pointing your local Docker client to the UCP controller:
 
