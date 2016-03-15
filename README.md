@@ -22,34 +22,35 @@ version: "2"
 
 services:
   voting-app:
-    image: docker/example-voting-app-voting-app
+    image: nicolaka/voting-app:latest
     ports:
       - "80"
     networks:
-      - voteapp
+      voteapp:
   result-app:
-    image: docker/example-voting-app-result-app
+    image: nicolaka/result-app:latest
     ports:
       - "80"
     networks:
-      - voteapp
+      voteapp:
   worker:
-    image: docker/example-voting-app-worker
+    image: nicolaka/worker:latest
     networks:
-      - voteapp
+      voteapp:
   redis:
     image: redis
     ports:
       - "6379"
     networks:
-      - voteapp
+      voteapp:
     container_name: redis
+
   db:
     image: postgres:9.4
     volumes:
       - "db-data:/var/lib/postgresql/data"
     networks:
-      - voteapp
+      voteapp:
     container_name: db
 volumes:
   db-data:
@@ -67,7 +68,7 @@ If you are not familiar, please refer to the following resources to gain a basic
 - Basic understanding of [Docker UCP](https://docs.docker.com/ucp)
 - Basic understanding of [Docker Swarm](https://docs.docker.com/swarm) 
 - Basic understanding of [Docker Compose](https://docs.docker.com/compose)
-- Basic understanding of common load balancing solutions such as [HAProxy](http://www.haproxy.org/) or [NGINX](https://www.nginx.com/)
+- Basic understanding of [NGINX](https://www.nginx.com/)
 
 ### Requirements
 There are software version requirements for this reference architecture. Other variations have not been tested or validated. For more details on software compatibility and interoperability please go to Compatibility Matrix page here [Compatibility Matrix](http://www.docker.com/compatibility-maintenance).
@@ -125,7 +126,7 @@ In order for different microservice containers to communicate, they must first d
 
 Containers deployed using Docker 1.10 can now use DNS to resolve the IP of other containers on the same network. This behaviour works out of the box for user-defined bridge and overlay networks.  
 
-Docker 1.10 also introduced the concept of _network alias_. A network alias abstracts multiple containers under a single alias. This means that scaled services ( e.g `docker-compose scale service=number`) can be grouped under and resolved by a single alias. Docker will resolve the alias to a healthy container that belongs to that alias. This is extremely helpful for stateless services where any container can be used to provide a service. 
+Docker 1.10 also introduced the concept of _network alias_. A network alias abstracts multiple containers under a single alias. This means that scaled services ( e.g `docker-compose scale service=number`) can be grouped under and resolved by a single alias. Docker will resolve the alias to a healthy container that belongs to that alias. This is extremely helpful for stateless services where any container can be used to provide a service. Docker uses round-robin DNS resolution to load-balance requests across all healthy containers that are part of an alias. 
 
 **Example** In our sample Voting App, the Java `worker` service can belong to the alias `workers`. If additional workers are needed, you can scale the `worker` service using Compose. All the `worker` services can belong to a single alias called `workers`. If other services need to connect with any of these services, Docker will resolve the `workers` alias to a healthy container. We can add network aliases for  the `worker` service in the Compose file as follows:
 
@@ -135,12 +136,11 @@ Docker 1.10 also introduced the concept of _network alias_. A network alias abst
 <snippet>
 
   worker:
-    image: docker/example-voting-app-worker
+    image: nicolaka/worker:latest
     networks:
-      - voteapp
-    network_aliases:
       voteapp:
-	    - workers			
+       aliases:
+        - workers	
 
 <snippet>
 
@@ -156,7 +156,7 @@ We can now deploy the app on UCP using Docker Compose. The `worker` service is t
 
 Some services are designed to be accessible from outside the UCP cluster (typically by a DNS name) either as services that need to be accessed by other services in a different cluster or by external public users/services. To access these services, you typically need to create a DNS record for each service, and map it to the exact node that that service is running on. If you also need to load balance across multiple containers, you need to add a load balancer and reconfigure it every time a container comes up/goes down. This process is tedious and not scalable.
 
-An easier, more scalable, and automated solution to enable external service discovery and load balancing is to use an event-driven service registrator that automatically updates a load-balancer's config as containers go up or down in your UCP cluster. This can be achieved by combining [Interlock] (github.com/ehazlett/interlock) with your preferred load balancer HAProxy or NGINX.
+An easier, more scalable, and automated solution to enable external service discovery and load balancing is to use an event-driven service registrator that automatically updates a load-balancer's config as containers go up or down in your UCP cluster. This can be achieved by combining [Interlock] (github.com/ehazlett/interlock) with a loadbalancer (NGINX).
 
 Interlock is a containerized, event-driven tool that connects to the UCP controllers and watches for events. In this case, events can be containers being spun up or going down. Interlock also looks for certain metadata that these containers have. These can be hostnames or labels that you configure the container with. It then uses the metadata to register/de-register these containers to a load balancing backend. The load balancer uses updated backend configs to direct incoming requests to healthy containers. Both Interlock and the load balancer containers are stateless, and hence can be scaled horizontally across multiple nodes to provide a highly available load balancing services for all deployed applications.
 
@@ -165,74 +165,16 @@ Interlock is a containerized, event-driven tool that connects to the UCP control
 
 
 
-First, you would need to configure Interlock. Interlock uses UCP's key-value store to store its configs. This enables a single update to the configuration to be used by multiple Interlock/LB instances (that is if you decide to deploy multiple instances of Interlock+lb).Second, you would need to deploy Interlock and the load balancer containers on a regular UCP node(s). It is recommended to dedicate some nodes in a UCP cluster to provide the external connectivity and load balancing service. These nodes need to have externally routable IP addresses reachable by the services that need to access your application. The other nodes running your services do not have to have externally routable IP addresses. In this example we will one of the three UCP nodes (we will call it **lb**) to deploy Interlock and the load balancer using Docker Compose.Third, you would need to create a DNS record that represents your application's domain name and map it to the IP address of lb.Finally, you need to add specific metadata in the form of container labels when deploying your application. The labels are then used by Interlock to register the container against the load balancer.The above steps provide the necessary service registration and load balancing solution that can be used by any developer when deploying their application on UCP. Follow the below step-by-step procedures to configure your UCP cluster based on your preferred industry-standard load balancing backend (3A for NGINX or 3B for HAProxy). The diagram below shows the load balancing solution. 
+First, you would need to configure Interlock. Interlock uses UCP's key-value store to store its configs. This enables a single update to the configuration to be used by multiple Interlock/LB instances (that is if you decide to deploy multiple instances of Interlock+lb).Second, you would need to deploy Interlock and the load balancer containers on a regular UCP node(s). It is recommended to dedicate some nodes in a UCP cluster to provide the external connectivity and load balancing service. These nodes need to have externally routable IP addresses reachable by the services that need to access your application. The other nodes running your services do not have to have externally routable IP addresses. In this example we will one of the three UCP nodes (we will call it **lb**) to deploy Interlock and the load balancer using Docker Compose.Third, you would need to create a DNS record that represents your application's domain name and map it to the IP address of lb.Finally, you need to add specific metadata in the form of container labels when deploying your application. The labels are then used by Interlock to register the container against the load balancer.The above steps provide the necessary service registration and load balancing solution that can be used by any developer when deploying their application on UCP. Follow the below step-by-step procedures to configure your UCP cluster based on your preferred industry-standard load balancing backend such as NGINX. The diagram below shows the load balancing solution. 
 
 ![](images/lb_sd_reference_arc_ext_sd.png)
-
-
-### 3A. Interlock and NGINX/NGINX+
 
 
 The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX/NGINX+:
 
 
-1.  On **any** UCP Controller nodes, update Interlock configs using a single curl command against UCP key/value store. 
 
-
-**Note**: We are using a sample NGINX config, full documentation for NGINX options can be found [here](https://github.com/ehazlett/interlock/blob/master/docs/configuration.md). 
-
-**Note:** You will notice that we're using the FQDN of UCP to load Interlock's configs to the K/V store. This will ensure that Interlock can reach and listen to events from any controller. However, Interlock needs to access the UCP on port 2376 (default port of the Swarm Manager container). Therefore, you need to ensure that the UCP Controller Load balancer will allow traffic to that port to reach the controllers. Alternatively, you can configure an internal UCP load balancer that doesn't restrict any ports to pass to the UCP controllers.
-
-**Note:** You need to substitute `$UCP_FQDN` with your UCP’s FQDN (e.g. ucp.myenterprise.com)
-
-
-
-```
-
-
-$ docker exec -ti ucp-kv curl \
-  --cacert /etc/docker/ssl/ca.pem \
-  --cert /etc/docker/ssl/cert.pem \
-  --key /etc/docker/ssl/key.pem \
-  https://$UCP_FQDN:12379/v2/keys/interlock/v1/config -XPUT -d value='listenAddr = ":8080"
-dockerURL = "tcp://$UCP_FQDN:2376"
-tlsCaCert = "/certs/ca.pem"
-tlsCert = "/certs/cert.pem"
-tlsKey = "/certs/key.pem"
-
-[[Extensions]]
-  Name = "nginx"
-  ConfigPath = "/etc/conf/nginx.conf"
-  PidPath = "/etc/conf/nginx.pid"
-  BackendOverrideAddress = ""
-  ConnectTimeout = 5000
-  ServerTimeout = 10000
-  ClientTimeout = 10000
-  MaxConn = 1024
-  Port = 80
-  SyslogAddr = ""
-  NginxPlusEnabled = false
-  AdminUser = "admin"
-  AdminPass = ""
-  SSLCertPath = ""
-  SSLCert = ""
-  SSLPort = 443
-  SSLOpts = ""
-  User = "www-data"
-  WorkerProcesses = 2
-  RLimitNoFile = 65535
-  ProxyConnectTimeout = 600
-  ProxySendTimeout = 600
-  ProxyReadTimeout = 600
-  SendTimeout = 600
-  SSLCiphers = "HIGH:!aNULL:!MD5"
-  SSLProtocols = "SSLv3 TLSv1 TLSv1.1 TLSv1.2"'
-
-
-```
-
-
-2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose in installed :
+1.  On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose in installed :
 
 
 ```
@@ -244,151 +186,76 @@ OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
 
 ```
 
-3.  On the dedicated UCP node (**lb**) , clone the [following repo](https://github.com/nicolaka/interlock-lbs). **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
+3.  On the dedicated UCP node (**lb**) , create a new Docker Compose file called `docker-compose.yml` with the below content. **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
 
 
 ```
-$ git clone https://github.com/nicolaka/interlock-lbs
+interlock:
+    image: ehazlett/interlock:master
+    command: -D run
+    tty: true
+    ports:
+        - 8080
+    environment:
+        INTERLOCK_CONFIG: |
+            ListenAddr = ":8080"
+            DockerURL = "${SWARM_HOST}"
+            TLSCACert = "/certs/ca.pem"
+            TLSCert = "/certs/cert.pem"
+            TLSKey = "/certs/key.pem"
+            PollInterval = "10s"
+            
+            [[Extensions]]
+            Name = "nginx"
+            ConfigPath = "/etc/nginx/nginx.conf"
+            PidPath = "/etc/nginx/nginx.pid"
+            MaxConn = 1024
+            Port = 80
+    volumes:
+        - ucp-node-certs:/certs
+    restart: always
+    
+nginx:
+    image: nginx:latest
+    entrypoint: nginx
+    command: -g "daemon off;" -c /etc/nginx/nginx.conf
+    ports:
+        - 80:80
+    labels:
+        - "interlock.ext.name=nginx"
+    restart: always
+    
 ```
 
-4.  On the dedicated UCP node (**lb**), export an environment variable called **CONTROLLER_IP**. This variable should be the FQDN of UCP Controller.
+4.  On the dedicated UCP node (**lb**), export an environment variable called **SWARM_HOST**. This variable should be the FQDN/IP address+ Swarm manager port of UCP Controller. The Swarm port is `2376` by default. You can check it by doing a `docker ps` and checking the host mounter port of the `ucp-swarm-manager` conttainer on the UCP controller node. If you use a FQDN that is assigned to the UCP loadbalancer then please ensure that you're also forwarding on port access. For example, if you're using a private AWS ELB to loadbalance across the UCP Controllers, it needs to forward TCP port `2376`.  Alternatively, you can use the private IP address of any of the UCP controllers.
 
-	`$ export CONTROLLER_IP=ucp.myenterprise.com`
+
+	`$ export SWARM_HOST=tcp://<private_IP_of_ANY_UCP_controller>:2376`
 
 5.  On the dedicated UCP node (**lb**), deploy Interlock+NGINX using the following docker-compose command:
 
 ```
-$ cd ./interlock-lbs/interlock-nginx
-interlock-lbs/interlock-nginx$ docker-compose up -d
+$ docker-compose up -d
+Creating interlock_nginx_1
+Creating interlock_interlock_1
 ```
 
 6.  Confirm that Interlock is connected to the Swarm event stream:
 
 
 ```
-/interlock-lbs/interlock-nginx$ docker-compose logs
-Attaching to interlocknginx_nginx_1, interlocknginx_interlock_1
-interlock_1 | time="2016-02-21T04:12:28Z" level=info msg="interlock 1.0.0 (57c4f86)"
-interlock_1 | time="2016-02-21T04:12:28Z" level=debug msg="using kv: addr=etcd://ucp.myenterprise.com:12379"
-interlock_1 | time="2016-02-21T04:12:28Z" level=debug msg="Trusting certs with subjects: [0\x1e1\x1c0\x1a\x06\x03U\x04\x03\x13\x13UCP Cluster Root CA]"
-interlock_1 | time="2016-02-21T04:12:28Z" level=debug msg="configuring TLS for KV"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="using tls for communication with docker"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="docker client: url=tcp://10.0.20.65:3376"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="loading extension: name=nginx configpath=/etc/conf/nginx.conf"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="starting event handling"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="checking to reload"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg=reloading
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="updating load balancers"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="event received: type= id="
-interlock_1 | time="2016-02-21T04:12:29Z" level=info msg="configuration updated" ext=nginx
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="reload duration: 505.20ms"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="event received: type= id="
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="event received: type= id="
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="event received: type=start id=0964bc585e971c43b69d08b440d2175d37b9c533b7e48026044a5694a4abeb5a"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="inspecting container: id=0964bc585e971c43b69d08b440d2175d37b9c533b7e48026044a5694a4abeb5a"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="checking container labels: id=0964bc585e971c43b69d08b440d2175d37b9c533b7e48026044a5694a4abeb5a"
-interlock_1 | time="2016-02-21T04:12:29Z" level=debug msg="ignoring proxy container: id=0964bc585e971c43b69d08b440d2175d37b9c533b7e48026044a5694a4abeb5a"
-interlock_1 | time="2016-02-21T04:12:31Z" level=debug msg="event received: type=attach id=0964bc585e971c43b69d08b440d2175d37b9c533b7e48026044a5694a4abeb5a"
-interlock_1 | time="2016-02-21T04:12:31Z" level=debug msg="event received: type=attach id=a01eca3a526c9f3a7cac36c6ffd9ae01643f7e866da7a40a46a2eedc9b530f74"
+$ docker-compose logs
+Attaching to interlock_interlock_1, interlock_nginx_1
+interlock_1  | INFO[0000] interlock 1.2.0-master (2fd9af6)
+interlock_1  | DEBU[0000] loading config from environment
+interlock_1  | DEBU[0000] using tls for communication with docker
+interlock_1  | DEBU[0000] docker client: url=tcp://192.168.3.100:2376
+interlock_1  | DEBU[0000] loading extension: name=nginx
+interlock_1  | DEBU[0000] using internal configuration template         ext=lb
+interlock_1  | INFO[0000] interlock node: id=eed2837eb4807518b9ff55b49ec29ad99415816b49eb7ea6176f3953d1842db1  ext=lb
+interlock_1  | DEBU[0000] starting event handling
+interlock_1  | INFO[0000] using polling for container updates: interval=10s
 
-```
-
-
-
-**NOTE**: You may skip section 3B and go to the Application Deployment Configuration section.
-
-
-### 3B. Interlock and HAProxy
-
-The following steps provide a guideline to configuring the load-balancing solution using Interlock + HAProxy:
-
-1. On **any** controller nodes, update Interlock configs using a single curl command against UCP k/v store. 
-
-**Note** Please make sure to use your substitute your own password for HAProxy by updating the value of `adminPass`.
-
-**Note**: We are using a sample HAProxy config, Full documentation on HAProxy options can be found [here](https://github.com/ehazlett/interlock/blob/master/docs/configuration.md).
-
-**Note:** You will notice that we're using the FQDN of UCP to load Interlock's configs to the K/V store. This will ensure that Interlock can reach and listen to events from any controller. However, Interlock needs to access the UCP on port 2376 (default port of the Swarm Manager container). Therefore, you need to ensure that the UCP Controller Load balancer will allow traffic to that port to reach the controllers. Alternatively, you can configure an internal UCP load balancer that doesn't restrict any ports to pass to the UCP controllers.
-
-**Note:** You need to substitute `$UCP_FQDN` with your UCP’s FQDN (e.g. ucp.myenterprise.com)
-
-
-```
-$ docker exec -ti ucp-kv curl \
-  --cacert /etc/docker/ssl/ca.pem \
-  --cert /etc/docker/ssl/cert.pem \
-  --key /etc/docker/ssl/key.pem \
-  https://$UCP_FQDN:12379/v2/keys/interlock/v1/config -XPUT -d value='listenAddr = ":8080"
-dockerURL = "tcp://$UCP_FQDN:2376"
-tlsCaCert = "/certs/ca.pem"
-tlsCert = "/certs/cert.pem"
-tlsKey = "/certs/key.pem"
-
-[[extensions]]
-name = "haproxy"
-configPath = "/usr/local/etc/haproxy/haproxy.cfg"
-pidPath = "/usr/local/etc/haproxy/haproxy.pid"
-sslCert = ""
-maxConn = 1024
-port = 80
-sslPort = 443
-adminUser = "admin"
-adminPass = "CHANGEME"'
-
-```
-
-
-
-2. On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose is installed: 
-
-```
-$ docker-compose version
-docker-compose version 1.6.2, build 4d72027
-docker-py version: 1.7.2
-CPython version: 2.7.6
-OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
-
-```
-
-3. On the dedicated UCP node (**lb**), clone the [following repo](https://github.com/nicolaka/interlock-lbs).
-
-
-```
-$ git clone https://github.com/nicolaka/interlock-lbs
-```
-
-4. On the dedicated UCP node (**lb**), export an environment variable called **CONTROLLER_IP**. This variable should be the FQDN of one of the UCP Controller. **Note**: Make sure to use the DNS/IP that was listed as a SAN when you created your UCP controllers.
-
-	`$ export CONTROLLER_IP=ucp.myenterprise.com`
-	
-5. On the dedicated UCP node (**lb**), deploy Interlock+HAProxy using the following docker-compose command:
-
-```
-$ cd ./interlock-lbs/interlock-haproxy
-interlock-lbs/interlock-haproxy$ docker-compose up -d
-```
-
-
-6. Confirm that Interlock is connected to the Swarm event stream:
-
-```
-interlock-lbs/interlock-haproxy$ docker-compose logs
-Attaching to interlockhaproxy_haproxy_1, interlockhaproxy_interlock_1
-haproxy_1   | [WARNING] 051/045104 (1) : config : log format ignored for frontend 'http-default' since it has no log address.
-interlock_1 | time="2016-02-21T04:51:04Z" level=info msg="interlock 1.0.0 (57c4f86)"
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="using kv: addr=etcd://ucp.myenterprise.com:12379"
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="Trusting certs with subjects: [0\x1e1\x1c0\x1a\x06\x03U\x04\x03\x13\x13UCP Cluster Root CA]"
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="configuring TLS for KV"
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="using tls for communication with docker"
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="docker client: url=tcp://10.0.20.65:3376"
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="loading extension: name=haproxy configpath=/usr/local/etc/haproxy/haproxy.cfg"
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="starting event handling"
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="checking to reload"
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg=reloading
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="updating load balancers"
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="generating proxy config" ext=haproxy
-interlock_1 | time="2016-02-21T04:51:04Z" level=debug msg="event received: type= id="
-interlock_1 | time="2016-02-21T04:51:04Z" level=info msg="configuration updated" ext=haproxy
 ```
 
 
@@ -462,81 +329,128 @@ For `results-app` we add the following:
 
 The complete docker-compose file now should like this :
 
-	```
-	version: "2"
-	
-	services:
-	  voting-app:
-	    image: docker/example-voting-app-voting-app
-	    ports:
-	      - "80"
-	    networks:
-	      - voteapp
-	    labels:
+```
+version: "2"
+
+services:
+  voting-app:
+    image: nicolaka/voting-app:latest
+    ports:
+      - "80"
+    networks:
+      voteapp:
+    labels:
 	     interlock.hostname: "vote"
 	     interlock.domain:   "myenterprise.com"
-	  result-app:
-	    image: docker/example-voting-app-result-app
-	    ports:
-	      - "80"
-	    networks:
-	      - voteapp
-	    labels:
+  result-app:
+    image: nicolaka/result-app:latest
+    ports:
+      - "80"
+    networks:
+      voteapp:
+    labels:
 	     interlock.hostname: "results"
 	     interlock.domain:   "myenterprise.com"
-	  worker:
-	    image: docker/example-voting-app-worker
-	    networks:
-	      - voteapp
-	    network_aliases:
-	      voteapp:
-		    - workers	
-	  redis:
-	    image: redis
-	    ports:
-	      - "6379"
-	    networks:
-	      - voteapp
-	    container_name: redis
-	
-	  db:
-	    image: postgres:9.4
-	    volumes:
-	      - "db-data:/var/lib/postgresql/data"
-	    networks:
-	      - voteapp
-	    container_name: db
-	volumes:
-	  db-data:
-	
-	networks:
-	  voteapp:
+  worker:
+    image: nicolaka/worker:latest
+    networks:
+      voteapp:
+       aliases:
+        - workers
+  redis:
+    image: redis
+    ports:
+      - "6379"
+    networks:
+      voteapp:
+    container_name: redis
+
+  db:
+    image: postgres:9.4
+    volumes:
+      - "db-data:/var/lib/postgresql/data"
+    networks:
+      voteapp:
+    container_name: db
+volumes:
+  db-data:
+
+networks:
+  voteapp:
 	```
+	
 5. Deploy the app on UCP using Docker Compose:
 
-	```
-	voteapps$ docker-compose up -d
-	```
+```
+$ docker-compose up -d
+Creating network "examplevotingapp_voteapp" with the default driver
+Creating examplevotingapp_worker_1
+Creating db
+Creating redis
+Creating examplevotingapp_voting-app_1
+Creating examplevotingapp_result-app_1
+
+$ docker-compose ps
+            Name                           Command               State            Ports
+------------------------------------------------------------------------------------------------
+db                              /docker-entrypoint.sh postgres   Up      5432/tcp
+examplevotingapp_result-app_1   node server.js                   Up      0.0.0.0:32808->80/tcp
+examplevotingapp_voting-app_1   /bin/sh -c dotnet Worker.dll     Up      0.0.0.0:32809->80/tcp
+examplevotingapp_worker_1       /bin/sh -c dotnet Worker.dll     Up
+redis                           docker-entrypoint.sh redis ...   Up      0.0.0.0:32807->6379/tcp
+```
+
 
 6. On the **lb**, confirm that Interlock registered the apps with the load balancer by looking at its logs. You should see the "restarted proxy container" message if Interlock registered the container successfully.
 
-	
-	```
-	interlock-lbs/interlock-haproxy$ docker-compose logs
-	
-	interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="adding host name=vote_myenterprise_com domain=vote.myenterprise.com" ext=haproxy
-	interlock_1 | time="2016-02-21T05:09:54Z" level=info msg="configuration updated" ext=haproxy
-	interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="dropping SYN packets to trigger client re-send" ext=haproxy
-	interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="&{/sbin/iptables [/sbin/iptables -I INPUT -p tcp --dport 80 --syn -j DROP] []  <nil> <nil> <nil> [] <nil> <nil> <nil> <nil> false [] [] [] [] <nil>}" ext=haproxy
-	interlock_1 | time="2016-02-21T05:09:54Z" level=warning msg="error signaling clients to resend; you will notice dropped packets: exit status 3" ext=haproxy
-	interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="event received: type= id="
-	interlock_1 | time="2016-02-21T05:09:54Z" level=debug msg="event received: type=kill id=608a397a7288d26932d3d83a912b1172a085c09d0eaf0d48be54dd282f3d3d49"
-	interlock_1 | time="2016-02-21T05:09:56Z" level=info msg="restarted proxy container: id=608a397a7288 name=/lb/interlockhaproxy_haproxy_1" ext=haproxy
-	```
+
+```
+$ docker-compose -f nginx-docker-compose.yml logs -f
+Attaching to interlock_nginx_1, interlock_interlock_1
+interlock_1  | INFO[0000] interlock 1.2.0-master (2fd9af6)
+interlock_1  | DEBU[0000] loading config from environment
+interlock_1  | DEBU[0000] using tls for communication with docker
+interlock_1  | DEBU[0000] docker client: url=tcp://192.168.23.35:2376
+interlock_1  | DEBU[0000] loading extension: name=nginx
+interlock_1  | DEBU[0000] using internal configuration template         ext=lb
+interlock_1  | INFO[0000] interlock node: id=476e5c33b0d37c51979eb9378fde5a29f001e7397863c32d856eb4a890b17d35  ext=lb
+interlock_1  | DEBU[0000] starting event handling
+interlock_1  | INFO[0000] using polling for container updates: interval=10s
+interlock_1  | DEBU[0010] detected new containers; triggering reload
+interlock_1  | DEBU[0010] event received: status=interlock-restart id=1470273010924854177 type= action=
+interlock_1  | DEBU[0010] notifying extension: lb
+interlock_1  | DEBU[0010] triggering reload                             ext=lb
+interlock_1  | DEBU[0014] reaping key: reload
+interlock_1  | DEBU[0014] triggering reload from cache                  ext=lb
+interlock_1  | DEBU[0014] checking to reload                            ext=lb
+interlock_1  | DEBU[0014] updating load balancers                       ext=lb
+interlock_1  | DEBU[0014] generating proxy config                       ext=lb
+interlock_1  | DEBU[0014] websocket endpoints: []                       ext=nginx
+interlock_1  | DEBU[0014] alias domains: []                             ext=nginx
+interlock_1  | INFO[0014] result.myenterprise.com: upstream=192.168.24.18:32808  ext=nginx
+interlock_1  | DEBU[0014] websocket endpoints: []                       ext=nginx
+interlock_1  | DEBU[0014] alias domains: []                             ext=nginx
+interlock_1  | INFO[0014] vote.myenterprise.com: upstream=192.168.24.18:32809  ext=nginx
+interlock_1  | DEBU[0014] proxy config path: /etc/nginx/nginx.conf      ext=lb
+interlock_1  | DEBU[0014] detected proxy container: id=4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65 backend=nginx  ext=lb
+interlock_1  | DEBU[0014] proxyContainers: [{4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65 [/ip-192-168-24-18/interlock_nginx_1] nginx:latest nginx -g 'daemon off;' -c /etc/nginx/nginx.conf 1470272999 Up 10 seconds [{ 443 0 tcp} {192.168.24.18 80 80 tcp}] 0 0 map[com.docker.compose.project:interlock com.docker.compose.service:nginx com.docker.compose.version:1.8.0 interlock.ext.name:nginx com.docker.compose.config-hash:7d2169ca9bdc4664f5665b69c1e3b4dd679821835037ecadd6718c91d16326db com.docker.compose.container-number:1 com.docker.compose.oneoff:False] {map[bridge:{<nil> [] []  2aa1ebd461d18bf74ca94fc34a38446c12da08b88be062bbfcce02de39e0d740 172.17.0.1 172.17.0.3 16   0 02:42:ac:11:00:03}]}}]  ext=lb
+interlock_1  | DEBU[0014] saving proxy config                           ext=lb
+interlock_1  | DEBU[0014] updating proxy config: id=4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65  ext=lb
+interlock_1  | DEBU[0015] signaling reload                              ext=lb
+interlock_1  | DEBU[0016] reloading proxy container: id=4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65  ext=nginx
+interlock_1  | INFO[0016] restarted proxy container: id=4452bce7c1e1 name=/ip-192-168-24-18/interlock_nginx_1  ext=nginx
+interlock_1  | DEBU[0016] triggering proxy network cleanup              ext=lb
+interlock_1  | INFO[0016] reload duration: 2267.36ms                    ext=lb
+interlock_1  | DEBU[0016] checking to remove proxy containers from networks  ext=lb
+```
+
 
 7. You can now access the app by going to http://vote.myenterprise.com or http://results.myenterprise.com.
 
-8.  If you need to scale the voting-app service, you can simply scale it using docker-compose. Interlock will add the newly added container to the voting-app backend. For example, if you're using HAProxy, you can see that the containers were added to the correct backend by going to the `http://vote.myenterprise.com/haproxy?stats`.
+8.  If you need to scale the voting-app service, you can simply scale it using docker-compose. Interlock will add the newly added container to the voting-app backend. You will note that your request will be served from a different container each time you hit `vote.myenterprise.com`.
+
+
+
 
 	```
 	$ docker-compose scale voting-app=10
@@ -551,7 +465,7 @@ The complete docker-compose file now should like this :
 	Creating and starting 10 ... done
 	```
 
-![](images/haproxy.png)
+![](images/results.png)
 
 ## Summary
 
