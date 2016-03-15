@@ -1,8 +1,0 @@
-Releasing our first Docker Reference Architecuture
-
-
-We recently announced Docker Datacenter to help you build an end-to-end Container as a Service (CaaS) platform to deploy your applications quickly, secuely, and efficently. Docker Datacenter includes Universal Control Plane (UCP), Docker Trusted Resgitry(DTR), and Commercially Supported Docker Engine.
-
-We are very keen to helping you design and build production-ready Docker platform that incorporates operational best-practices and industry standard solutions. To help our customers build a CaaS __platform__ (and not just a set of independent components) we will be releasing a series of Docker Reference Architectures(RA).
-
-The first refernce architecture we are releasing is focused on Service Discovery and Load Balancing with Docker Universal Control Plane (UCP).  
