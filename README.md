@@ -85,10 +85,19 @@ There are software version requirements for this reference architecture.  Other 
 
 - Docker UCP 1.0.0
 - Docker Compose 1.6.1
+<<<<<<< HEAD
 - Commercially supported Docker Engine 1.10
 
 ### Prerequisites
 For this reference architecture, you will need the following environment setup.  For instructions on installation go [here](FIXME).
+=======
+- Commercially Supported Docker Engine 1.10
+
+### Prerequisites
+For this reference architecture, you will need the following environment setup. 
+
+**Note:**  No need to install UCP yet. You will install UCP in a later step.
+>>>>>>> ed7a83fcb1ba5f81a271ce1bfbdc8cfe6c6451fd
 
 -  At least 3 UCP Controllers Nodes.
 -  At least 3 UCP Cluster Nodes. 
@@ -169,7 +178,11 @@ Here are some recommended UCP controller and load balancer configurations:
 
 **Health Checks**: The load balancer can use UCP's API endpoint `/_ping` to ensure that each of the controllers is healthy. A `200 OK` response means that the controller is healthy and it can receive traffic. 
 
+<<<<<<< HEAD
 **Listeners**:  The load balancer should be configured to load balance using TCP port 80 and 443 to all three nodes in the cluster. The load balancer should **not** terminate/reestablish HTTPS connections due to mutual TLS connection requirement in order to use Docker Client with UCP. **(FIXME)** 
+=======
+**Listeners**:  The load balancer should be configured to load balance using TCP port 80 and 443 to all three nodes in the cluster. The load balancer should **not** terminate/reestablish HTTPS connections due to mutual TLS connection requirement in order to use Docker Client with UCP. 
+>>>>>>> ed7a83fcb1ba5f81a271ce1bfbdc8cfe6c6451fd
 
 **DNS**: a DNS record should be mapped to the load balancer itself (e.g VIP) and not to any individual controller.
 
@@ -177,7 +190,11 @@ Here are some recommended UCP controller and load balancer configurations:
 
 **SSL Certificates**: When you install the UCP controllers, ensure that you use the Fully Qualified Domain Name (FQDN) of the UCP when asked for additional Subject Alternative Names(SAN). You need to do this on **ALL** UCP controllers (including the replicas). The SANs are used by UCP's CA to sign SSL certificates.
 
+<<<<<<< HEAD
 If you would like to use your own CA to sign UCP's certificate, please follow the following directions [directions](FIXME).
+=======
+If you would like to use your own CA to sign UCP's certificate, please follow the following directions [directions](https://docs.docker.com/ucp/production-install/#step-5-customize-the-ca-used-optional).
+>>>>>>> ed7a83fcb1ba5f81a271ce1bfbdc8cfe6c6451fd
 
 Should any controller fail, the UCP Controller load balancer will ensure that UCP can be reached and all Docker deployment workflows are run without impact. 
 
