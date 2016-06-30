@@ -31,7 +31,6 @@ The end goal is to:
 **Sample Application Docker Compose File:**
 
 ```
-
 version: "2"
 
 services:
@@ -70,7 +69,6 @@ volumes:
 
 networks:
   voteapp:
-
 ```
 
 ### Assumptions
@@ -84,7 +82,7 @@ If you are not familiar, please refer to the following resources to gain a basic
 - Basic understanding of common load balancing solutions such as [HAProxy](http://www.haproxy.org/) or [NGINX](https://www.nginx.com/)
 
 ### Requirements
-There are software version requirements for this reference architecture. Other variations have not been tested or validated. For more details on software compatibility and interoperability please go to Compatibility Matrix page here [Compatibility Matrix](https://success.docker.com/Get_Help/Compatibility_Matrix_and_Maintenance_Lifecycle).
+There are software version requirements for this reference architecture. Other variations have not been tested or validated. For more details on software compatibility and interoperability please go to the [Compatibility Matrix](https://success.docker.com/Get_Help/Compatibility_Matrix_and_Maintenance_Lifecycle).
 
 - Docker UCP 1.0.0
 - Docker Compose 1.6.1
@@ -142,7 +140,6 @@ UCP controllers are stateless by design. All UCP controllers accept requests, an
 ![](images/lb_sd_reference_arch_ucp_ha.png)
 
 ```
-
 global
   maxconn 256
 defaults
@@ -164,7 +161,6 @@ backend servers
   server ucp1 10.10.10.11:443 check
   server ucp2 10.10.10.12:443 check
   server ucp3 10.10.10.13:443 check
-
 ```
 
 Here are some recommended UCP controller and load balancer configurations:
@@ -182,7 +178,6 @@ Now that you have the full requirements for UCP HA deployment, you can easily de
 
 ## 2. Internal Service Discovery + Load Distribution
 
-
 In order for different microservice containers to communicate, they must first discover each other. The introduction of multi-host networking in Docker 1.9 enabled multiple services belonging to a single application to be connected via an Overlay Network that spans multiple nodes. More information on [Overlay Networks](https://docs.docker.com/engine/userguide/networking/get-started-overlay/). Docker 1.10 added an embedded DNS-based for hostname lookups for a more reliable and scalable service discovery.
 
 Containers deployed using Docker 1.10 can now use DNS to resolve the IP of other containers on the same network. This behaviour works out of the box for user-defined bridge and overlay networks.  
@@ -192,7 +187,6 @@ Docker 1.10 also introduced the concept of _network alias_. A network alias abst
 **Example** In our sample Voting App, the Java `worker` service can belong to the alias `workers`. If additional workers are needed, you can scale the `worker` service using Compose. All the `worker` services can belong to a single alias called `workers`. If other services need to connect with any of these services, Docker will resolve the `workers` alias to a healthy container. We can add network aliases for  the `worker` service in the Compose file as follows:
 
 ```
-
 <snippet>
 
   worker:
@@ -204,14 +198,11 @@ Docker 1.10 also introduced the concept of _network alias_. A network alias abst
 	    - workers			
 
 <snippet>
-
 ```
 
 We can now deploy the app on UCP using Docker Compose. The `worker` service is then scaled such that there are two containers running (`worker_1` and `worker_2`). Other services can reach either worker containers by using the container name `worker_1` or the alias name (`workers`). In the case that `worker_1` goes down, Docker automatically will resolved the `workers` alias to `worker_2`.
 
 ![](images/lb_sd_reference_arch_intra_sd.png)
-
-
 
 ## 3. External Service Discovery + Load Distribution 
 
@@ -240,9 +231,7 @@ The above steps provide the necessary service registration and load balancing so
 
 ### 3A. Interlock and NGINX/NGINX+
 
-
 The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX/NGINX+:
-
 
 1.  On **any** UCP Controller nodes, update Interlock configs using a single curl command against UCP key/value store. 
 
