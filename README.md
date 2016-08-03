@@ -449,10 +449,7 @@ interlock_1  | DEBU[0016] checking to remove proxy containers from networks  ext
 
 8.  If you need to scale the voting-app service, you can simply scale it using docker-compose. Interlock will add the newly added container to the voting-app backend. You will note that your request will be served from a different container each time you hit `vote.myenterprise.com`.
 
-
-
-
-	```
+```
 	$ docker-compose scale voting-app=10
 	Creating and starting 2 ... done
 	Creating and starting 3 ... done
@@ -463,8 +460,9 @@ interlock_1  | DEBU[0016] checking to remove proxy containers from networks  ext
 	Creating and starting 8 ... done
 	Creating and starting 9 ... done
 	Creating and starting 10 ... done
-	```
+```
 
+![](images/vote.png)
 ![](images/results.png)
 
 ## Summary
