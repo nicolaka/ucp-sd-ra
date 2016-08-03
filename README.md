@@ -12,7 +12,7 @@ In this reference architecture, you will learn how to setup a highly available U
 * **voting-app**: A Python webapp which lets you vote between two options. (External DNS: vote.myenterprise.com)
 * **result-app**: A Node.js webapp which shows the results of the voting in real time (External DNS: results.myenterprise.com)
 * **redis**: A Redis queue which collects new votes
-* **worker**: A Java worker which consumes votes and stores them in…
+* **worker**: A .Net worker which consumes votes and stores them in…
 * **db**: A Postgres database backed by a Docker volume
 
 **Sample Application Docker Compose File:**
@@ -124,7 +124,7 @@ Here are some recommended UCP controller and load balancer configurations:-	**
 
 In order for different microservice containers to communicate, they must first discover each other. The introduction of multi-host networking in Docker 1.9 enabled multiple services belonging to a single application to be connected via an Overlay Network that spans multiple nodes. More information on [Overlay Networks](https://docs.docker.com/engine/userguide/networking/get-started-overlay/). Docker 1.10 added an embedded DNS-based for hostname lookups for a more reliable and scalable service discovery.
 
-Containers deployed using Docker 1.10 can now use DNS to resolve the IP of other containers on the same network. This behaviour works out of the box for user-defined bridge and overlay networks.  
+Containers deployed using Docker 1.10 can now use DNS to resolve the IP of other containers on the same network. This behavior works out of the box for user-defined bridge and overlay networks.  
 
 Docker 1.10 also introduced the concept of _network alias_. A network alias abstracts multiple containers under a single alias. This means that scaled services ( e.g `docker-compose scale service=number`) can be grouped under and resolved by a single alias. Docker will resolve the alias to a healthy container that belongs to that alias. This is extremely helpful for stateless services where any container can be used to provide a service. Docker uses round-robin DNS resolution to load-balance requests across all healthy containers that are part of an alias. 
 
@@ -227,7 +227,7 @@ nginx:
     
 ```
 
-4.  On the dedicated UCP node (**lb**), export an environment variable called **SWARM_HOST**. This variable should be the FQDN/IP address+ Swarm manager port of UCP Controller. The Swarm port is `2376` by default. You can check it by doing a `docker ps` and checking the host mounter port of the `ucp-swarm-manager` conttainer on the UCP controller node. If you use a FQDN that is assigned to the UCP loadbalancer then please ensure that you're also forwarding on port access. For example, if you're using a private AWS ELB to loadbalance across the UCP Controllers, it needs to forward TCP port `2376`.  Alternatively, you can use the private IP address of any of the UCP controllers.
+4.  On the dedicated UCP node (**lb**), export an environment variable called **SWARM_HOST**. This variable should be the FQDN/IP address+ Swarm manager port of UCP Controller. The Swarm port is `2376` by default. You can check it by doing a `docker ps` and checking the host mounter port of the `ucp-swarm-manager` container on the UCP controller node. If you use a FQDN that is assigned to the UCP loadbalancer then please ensure that you're also forwarding on port access. For example, if you're using a private AWS ELB to loadbalance across the UCP Controllers, it needs to forward TCP port `2376`.  Alternatively, you can use the private IP address of any of the UCP controllers.
 
 
 	`$ export SWARM_HOST=tcp://<private_IP_of_ANY_UCP_controller>:2376`
@@ -263,7 +263,7 @@ interlock_1  | INFO[0000] using polling for container updates: interval=10s
 
 Now that Interlock+LB are up and configured to listen on Swarm events. You can start deploying your applications on the UCP cluster. Interlock expects specific container metadata via labels. A complete list of all Interlock options can be found [here](https://github.com/ehazlett/interlock/blob/ng/docs/interlock_data.md). 
 
-In our sample app, we want to expose two services externally. These services are `voting-app` and `results-app`. For interlock to register these services as backends for the load balancer, we need to provide additional container labels. In our case, we want `voting-app` to be registered as `vote.myenterprise.com` and `results-app` as `results.myenterprise.com`. The DNS records need to be mapped to the IP addrress of (**lb**). You may also map a wildcard DNS record to the **lb**. To configure and deploy the app, follow the below steps:
+In our sample app, we want to expose two services externally. These services are `voting-app` and `results-app`. For interlock to register these services as backends for the load balancer, we need to provide additional container labels. In our case, we want `voting-app` to be registered as `vote.myenterprise.com` and `results-app` as `results.myenterprise.com`. The DNS records need to be mapped to the IP address of (**lb**). You may also map a wildcard DNS record to the **lb**. To configure and deploy the app, follow the below steps:
 
 1. From your local machine, download a UCP client bundle. Instructions can be found [here](https://docs.docker.com/ucp/deploy-application/#step-2-get-the-client-bundle-and-configure-a-shell).
 
