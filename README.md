@@ -450,10 +450,9 @@ volumes:
 
 networks:
   voteapp:
-	```
+  ```
 	
 5. Deploy the app on UCP using Docker Compose:
-
 ```
 $ docker-compose up -d
 Creating network "examplevotingapp_voteapp" with the default driver
@@ -462,7 +461,6 @@ Creating db
 Creating redis
 Creating examplevotingapp_voting-app_1
 Creating examplevotingapp_result-app_1
-
 $ docker-compose ps
             Name                           Command               State            Ports
 ------------------------------------------------------------------------------------------------
@@ -472,7 +470,6 @@ examplevotingapp_voting-app_1   /bin/sh -c dotnet Worker.dll     Up      0.0.0.0
 examplevotingapp_worker_1       /bin/sh -c dotnet Worker.dll     Up
 redis                           docker-entrypoint.sh redis ...   Up      0.0.0.0:32807->6379/tcp
 ```
-
 
 6. On the **lb**, confirm that Interlock registered the apps with the load balancer by looking at its logs. You should see the "restarted proxy container" message if Interlock registered the container successfully.
 
