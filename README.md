@@ -2,10 +2,23 @@
 
 ### Introduction
 
-When developing applications, developers focus on functionality, speed, robustness, and quality of the application itself more than the ongoing operations. However, the shift to DevOps in application deployment practices has forced developers to own not only the application's development but also its deployment operations (developers are no longer pager-duty-free!). This shift also encouraged the operations teams to provide a common, scalable, and secure infrastructure that multiple developer teams can use to build, test, stage and deploy their applications.With this shift, DevOps teams want to ensure that their applications are scalable. This means that these applications need to be broken up into, and advertised as smaller, decoupled microservices that can be easily scaled across large compute clusters. The microservices approach emphasized two key architectural considerations: **service discovery** and **load balancing**. This means that as developers build their applications to scale, they need to consider and design how each component (service) is being discovered by other services within or from outside the cluster. Additionally, as these services scale horizontally across the cluster, they should be equally utilized for maximum load distribution.Docker Universal Control Plane (UCP) was built with this operational shift in mind. Docker UCP is available as part of Docker Datacenter to address both the developers’ requirement for a seamless path from development to production and IT Operations’ requirement for building a secure and scalable Docker infrastructure. Docker Datacenter includes UCP, Trusted Registry and Commercially Supported Docker Engines. As an integrated platform, Docker Datacenter empowers application teams to build a Containers as a Service (CaaS) environment either on-premises or in the cloudThis reference architecture is designed to provide guidance towards a supported high availability configuration of UCP with dynamic service discovery and load balancing.  Docker provides official support for Docker products as governed by the Docker Datacenter end-user service agreement. For this reference architecture, Docker will provide support for Interlock (per the service levels provided in the customer contract for Docker Datacenter Subscription) as well as best effort support for 3rd party software, although official support for such software must be obtained through those 3rd party vendors.
+When developing applications, developers focus on functionality, speed, robustness, and quality of the application itself more than the ongoing operations. However, the shift to DevOps in application deployment practices has forced developers to own not only the application's development but also its deployment operations (developers are no longer pager-duty-free!). This shift also encouraged the operations teams to provide a common, scalable, and secure infrastructure that multiple developer teams can use to build, test, stage and deploy their applications.
+
+With this shift, DevOps teams want to ensure that their applications are scalable. This means that these applications need to be broken up into, and advertised as smaller, decoupled microservices that can be easily scaled across large compute clusters. The microservices approach emphasized two key architectural considerations: **service discovery** and **load balancing**. This means that as developers build their applications to scale, they need to consider and design how each component (service) is being discovered by other services within or from outside the cluster. Additionally, as these services scale horizontally across the cluster, they should be equally utilized for maximum load distribution.
+
+Docker Universal Control Plane (UCP) was built with this operational shift in mind. Docker UCP is available as part of Docker Datacenter to address both the developers’ requirement for a seamless path from development to production and IT Operations’ requirement for building a secure and scalable Docker infrastructure. Docker Datacenter includes UCP, Trusted Registry and Commercially Supported Docker Engines. As an integrated platform, Docker Datacenter empowers application teams to build a Containers as a Service (CaaS) environment either on-premises or in the cloud
+
+This reference architecture is designed to provide guidance towards a supported high availability configuration of UCP with dynamic service discovery and load balancing.  Docker provides official support for Docker products as governed by the Docker Datacenter end-user service agreement. For this reference architecture, Docker will provide support for Interlock (per the service levels provided in the customer contract for Docker Datacenter Subscription) as well as best effort support for 3rd party software, although official support for such software must be obtained through those 3rd party vendors.
+
 ### What You Will Learn
 
-In this reference architecture, you will learn how to setup a highly available Universal Control Plane (UCP) cluster to enable dynamic service discovery and load balancing. We will use a sample Dockerized application (Voting App) throughout this paper as a reference application for the exercise. The sample application is composed of five (5) microservices as described below. The end goal is to:		-	Deploy the application on UCP-	Ensure that all of its services are discoverable within the cluster-	Ensure two of its services are accessible and load-balanced from outside the cluster with pre-determined DNS names
+In this reference architecture, you will learn how to setup a highly available Universal Control Plane (UCP) cluster to enable dynamic service discovery and load balancing. We will use a sample Dockerized application (Voting App) throughout this paper as a reference application for the exercise. The sample application is composed of five (5) microservices as described below. 
+
+The end goal is to:
+		
+-	Deploy the application on UCP
+-	Ensure that all of its services are discoverable within the cluster
+-	Ensure two of its services are accessible and load-balanced from outside the cluster with pre-determined DNS names
 
 **Sample Application Architecture:**
 
@@ -64,7 +77,8 @@ networks:
 ### Assumptions
 This reference architecture assumes that the reader already has a working understanding of the Docker Datacenter, in particular the following components: Docker Universal Control Plane, Swarm, and Compose. 
 
-If you are not familiar, please refer to the following resources to gain a basic understanding of:
+If you are not familiar, please refer to the following resources to gain a basic understanding of:
+
 - Basic understanding of [Docker UCP](https://docs.docker.com/ucp)
 - Basic understanding of [Docker Swarm](https://docs.docker.com/swarm) 
 - Basic understanding of [Docker Compose](https://docs.docker.com/compose)
@@ -80,14 +94,31 @@ There are software version requirements for this reference architecture. Other v
 ### Prerequisites
 
 
-For this reference architecture, you will need the following environment set up.  You do not need to have UCP installed.  You will install the environment at a later step, but can prepare by reviewing the installation requirements [here](https://docs.docker.com/ucp/plan-production-install/).*	At least 3 UCP Controllers Nodes.*	At least 3 UCP Cluster Nodes.*	A designated DNS record for UCP (e.g. ucp.myenterprise.com).*	Unrestricted network between the nodes.*	Network reachability to the UCP controller nodes on TCP port 80/443. ![](images/lb_sd_reference_arch_base_env.png)
+For this reference architecture, you will need the following environment set up.  You do not need to have UCP installed.  You will install the environment at a later step, but can prepare by reviewing the installation requirements [here](https://docs.docker.com/ucp/plan-production-install/).
+
+*	At least 3 UCP Controllers Nodes.
+*	At least 3 UCP Cluster Nodes.
+*	A designated DNS record for UCP (e.g. ucp.myenterprise.com).
+*	Unrestricted network between the nodes.
+*	Network reachability to the UCP controller nodes on TCP port 80/443. 
+
+![](images/lb_sd_reference_arch_base_env.png)
 
 
 **Note:** You do not need to have UCP installed. You will install it at a later step.
 
 ### Design Considerations
 
-There are multiple considerations for designing production-ready infrastructure using Docker Datacenter. From an operational point of view, it is important to ensure that UCP itself is highly available so that any failure in one or more UCP controllers wouldn't result in an inability to access the UCP controller. Additionally, providing a scalable, secure, and stateless load-balancing service for all applications is important so that as the application scales, load balancing can dynamically ensure that traffic is equally distributed across all of the containers providing these services.From a developer's point of view, it is important to ensure that any design should integrate with the established developer workflow. For example, if developers use Docker Compose to build their applications locally during development, the new design should ensure Compose files can be used to deploy to production. Either directly by the developers or through a coordinated sign-off process to the deployment operations team. Additionally, it is important to ensure that each service deployed on Docker Datacenter is easily discoverable and reachable by other services that are part of the same app, regardless where the containers providing these services are deployed in the cluster. This means that developers can assume that moving their apps from local development to production cluster will not break the application. Finally, it is crucial to ensure that the developers' apps are easily discoverable and accessible from outside the cluster regardless which cluster or cluster node they end up being deployed to. This means that as the app moves from one cluster to another, developers should not worry about losing access to their applications.In summary, there are three key design considerations that need to be addressed to ensure the developers and IT operations teams requirements are met:*	UCP High-Availability*	Internal Service Discovery + Load Distribution*	External Service Discovery + Load Distribution
+There are multiple considerations for designing production-ready infrastructure using Docker Datacenter. From an operational point of view, it is important to ensure that UCP itself is highly available so that any failure in one or more UCP controllers wouldn't result in an inability to access the UCP controller. Additionally, providing a scalable, secure, and stateless load-balancing service for all applications is important so that as the application scales, load balancing can dynamically ensure that traffic is equally distributed across all of the containers providing these services.
+
+From a developer's point of view, it is important to ensure that any design should integrate with the established developer workflow. For example, if developers use Docker Compose to build their applications locally during development, the new design should ensure Compose files can be used to deploy to production. Either directly by the developers or through a coordinated sign-off process to the deployment operations team. Additionally, it is important to ensure that each service deployed on Docker Datacenter is easily discoverable and reachable by other services that are part of the same app, regardless where the containers providing these services are deployed in the cluster. This means that developers can assume that moving their apps from local development to production cluster will not break the application. Finally, it is crucial to ensure that the developers' apps are easily discoverable and accessible from outside the cluster regardless which cluster or cluster node they end up being deployed to. This means that as the app moves from one cluster to another, developers should not worry about losing access to their applications.
+
+In summary, there are three key design considerations that need to be addressed to ensure the developers and IT operations teams requirements are met:
+
+*	UCP High-Availability
+*	Internal Service Discovery + Load Distribution
+*	External Service Discovery + Load Distribution
+
 
 ### Solution Overview
 
@@ -96,7 +127,9 @@ In the following sections, we will go through each of the three design considera
 ## 1. UCP High-Availability 
 
 
-Docker UCP supports high availability (HA) by replicating the UCP controller along with the underlying Swarm manager and key-value store containers within your cluster. When you deploy UCP, you start by deploying the first UCP controller followed by the replicas. Functionally, all controllers are the same. HA requires at least three (3) controllers, a primary and two replicas , to be configured on three separate nodes. It is not recommended to run a cluster with only the primary controller and a single replica as this results in a split-brain scenario (e.g. each controller thinks it is the master controller in the cluster). Additionally, HA mode requires an odd number of controllers to achieve simple majority (quorum). Failure tolerance for UCP HA deployments can be summarized as follows:
+Docker UCP supports high availability (HA) by replicating the UCP controller along with the underlying Swarm manager and key-value store containers within your cluster. When you deploy UCP, you start by deploying the first UCP controller followed by the replicas. Functionally, all controllers are the same. HA requires at least three (3) controllers, a primary and two replicas , to be configured on three separate nodes. It is not recommended to run a cluster with only the primary controller and a single replica as this results in a split-brain scenario (e.g. each controller thinks it is the master controller in the cluster). Additionally, HA mode requires an odd number of controllers to achieve simple majority (quorum). 
+
+Failure tolerance for UCP HA deployments can be summarized as follows:
 
 
 | Number Of Deployed Controllers | Failure Tolerance |
@@ -113,11 +146,42 @@ UCP controllers are stateless by design. All UCP controllers accept requests, an
 
 
 ```
-global  maxconn 256defaults  mode tcp  timeout connect 5000ms  timeout client 50000ms  timeout server 50000msfrontend public  option tcplog  bind *:80  redirect scheme https code 301 if !{ ssl_fc }  bind *:443  default_backend serversbackend servers  mode tcp  balance roundrobin  server ucp1 10.10.10.11:443 check  server ucp2 10.10.10.12:443 check  server ucp3 10.10.10.13:443 check
+global
+  maxconn 256
+defaults
+  mode tcp
+  timeout connect 5000ms
+  timeout client 50000ms
+  timeout server 50000ms
+
+frontend public
+  option tcplog
+  bind *:80
+  redirect scheme https code 301 if !{ ssl_fc }
+  bind *:443
+  default_backend servers
+
+backend servers
+  mode tcp
+  balance roundrobin
+  server ucp1 10.10.10.11:443 check
+  server ucp2 10.10.10.12:443 check
+  server ucp3 10.10.10.13:443 check
 
 ```
 
-Here are some recommended UCP controller and load balancer configurations:-	**Health Checks:** The load balancer can use UCP's API endpoint /_ping to ensure that each of the controllers is healthy. A 200 OK response means that the controller is healthy and it can receive traffic.-	**Listeners:** The load balancer should be configured to load-balance using TCP port 80 and 443. The load balancer should not terminate/reestablish HTTPS connections due to mutual TLS connection requirement in order to use Docker Client with UCP.-	**DNS:** a DNS record should be mapped to the load balancer itself (e.g. VIP) and not to any individual controller.-	**IPs:** The load balancer can load balance to the controller's private or public IPs as long as the load balancer can reach each of the controllers.-	**SSL Certificates:** When you install the UCP controllers, ensure that you use the Fully Qualified Domain Name (FQDN) of the UCP when asked for additional Subject Alternative Names(SAN). You need to do this on ALL UCP controllers (including the replicas). The SANs are used by the UCP Certificate Authority to sign the SSL certificates. If you would like to use your own CA to sign UCP's certificate, please follow the following [directions] (https://docs.docker.com/ucp/production-install/#step-5-customize-the-ca-used-optional).Should any controller fail, the UCP Controller load balancer will ensure that UCP can be reached and all Docker deployment workflows are run without impact. Now that you have the full requirements for UCP HA deployment, you can easily deploy the UCP following these [directions] (https://docs.docker.com/ucp/production-install/).
+Here are some recommended UCP controller and load balancer configurations:
+
+-	**Health Checks:** The load balancer can use UCP's API endpoint /_ping to ensure that each of the controllers is healthy. A 200 OK response means that the controller is healthy and it can receive traffic.
+-	**Listeners:** The load balancer should be configured to load-balance using TCP port 80 and 443. The load balancer should not terminate/reestablish HTTPS connections due to mutual TLS connection requirement in order to use Docker Client with UCP.
+-	**DNS:** a DNS record should be mapped to the load balancer itself (e.g. VIP) and not to any individual controller.
+-	**IPs:** The load balancer can load balance to the controller's private or public IPs as long as the load balancer can reach each of the controllers.
+-	**SSL Certificates:** When you install the UCP controllers, ensure that you use the Fully Qualified Domain Name (FQDN) of the UCP when asked for additional Subject Alternative Names(SAN). You need to do this on ALL UCP controllers (including the replicas). The SANs are used by the UCP Certificate Authority to sign the SSL certificates. If you would like to use your own CA to sign UCP's certificate, please follow the following [directions] (https://docs.docker.com/ucp/production-install/#step-5-customize-the-ca-used-optional).
+
+
+Should any controller fail, the UCP Controller load balancer will ensure that UCP can be reached and all Docker deployment workflows are run without impact. 
+
+Now that you have the full requirements for UCP HA deployment, you can easily deploy the UCP following these [directions] (https://docs.docker.com/ucp/production-install/).
 
 ## 2. Internal Service Discovery + Load Distribution
 
@@ -165,7 +229,16 @@ Interlock is a containerized, event-driven tool that connects to the UCP control
 
 
 
-First, you would need to configure Interlock. Interlock uses UCP's key-value store to store its configs. This enables a single update to the configuration to be used by multiple Interlock/LB instances (that is if you decide to deploy multiple instances of Interlock+lb).Second, you would need to deploy Interlock and the load balancer containers on a regular UCP node(s). It is recommended to dedicate some nodes in a UCP cluster to provide the external connectivity and load balancing service. These nodes need to have externally routable IP addresses reachable by the services that need to access your application. The other nodes running your services do not have to have externally routable IP addresses. In this example we will one of the three UCP nodes (we will call it **lb**) to deploy Interlock and the load balancer using Docker Compose.Third, you would need to create a DNS record that represents your application's domain name and map it to the IP address of lb.Finally, you need to add specific metadata in the form of container labels when deploying your application. The labels are then used by Interlock to register the container against the load balancer.The above steps provide the necessary service registration and load balancing solution that can be used by any developer when deploying their application on UCP. Follow the below step-by-step procedures to configure your UCP cluster based on your preferred industry-standard load balancing backend such as NGINX. The diagram below shows the load balancing solution. 
+First, you would need to configure Interlock. Interlock uses UCP's key-value store to store its configs. This enables a single update to the configuration to be used by multiple Interlock/LB instances (that is if you decide to deploy multiple instances of Interlock+lb).
+
+Second, you would need to deploy Interlock and the load balancer containers on a regular UCP node(s). It is recommended to dedicate some nodes in a UCP cluster to provide the external connectivity and load balancing service. These nodes need to have externally routable IP addresses reachable by the services that need to access your application. The other nodes running your services do not have to have externally routable IP addresses. In this example we will one of the three UCP nodes (we will call it **lb**) to deploy Interlock and the load balancer using Docker Compose.
+
+Third, you would need to create a DNS record that represents your application's domain name and map it to the IP address of lb.
+
+Finally, you need to add specific metadata in the form of container labels when deploying your application. The labels are then used by Interlock to register the container against the load balancer.
+
+The above steps provide the necessary service registration and load balancing solution that can be used by any developer when deploying their application on UCP. Follow the below step-by-step procedures to configure your UCP cluster based on your preferred industry-standard load balancing backend such as NGINX. The diagram below shows the load balancing solution.
+ 
 
 ![](images/lb_sd_reference_arc_ext_sd.png)
 
@@ -467,4 +540,7 @@ interlock_1  | DEBU[0016] checking to remove proxy containers from networks  ext
 
 ## Summary
 
-In this Reference Architecture, we set up a highly-available Docker Universal Control Plane (UCP) cluster and enabled dynamic built-in service discovery and load balancing by addressing three key design requirements: Universal Control Plane High-Availability, Cluster Service Discovery with Load Distribution, and External Service Discovery with Load Distribution. Additionally, sample configurations and workflows for deploying microservice applications on Universal Control Plane. For more information on Universal Control Plane and the rest of the Docker Datacenter subscription, visit our website at www.docker.com/products/docker-datacenter. 
+In this Reference Architecture, we set up a highly-available Docker Universal Control Plane (UCP) cluster and enabled dynamic built-in service discovery and load balancing by addressing three key design requirements: Universal Control Plane High-Availability, Cluster Service Discovery with Load Distribution, and External Service Discovery with Load Distribution. Additionally, sample configurations and workflows for deploying microservice applications on Universal Control Plane. 
+
+
+For more information on Universal Control Plane and the rest of the Docker Datacenter subscription, visit our website at www.docker.com/products/docker-datacenter.
