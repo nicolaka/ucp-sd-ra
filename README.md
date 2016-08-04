@@ -516,7 +516,6 @@ interlock_1  | INFO[0016] reload duration: 2267.36ms                    ext=lb
 interlock_1  | DEBU[0016] checking to remove proxy containers from networks  ext=lb
 ```
 
-
 7. You can now access the app by going to http://vote.myenterprise.com or http://results.myenterprise.com.
 
 8.  If you need to scale the voting-app service, you can simply scale it using docker-compose. Interlock will add the newly added container to the voting-app backend. You will note that your request will be served from a different container each time you hit `vote.myenterprise.com`.
