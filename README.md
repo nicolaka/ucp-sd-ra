@@ -476,7 +476,6 @@ redis                           docker-entrypoint.sh redis ...   Up      0.0.0.0
 
 6. On the **lb**, confirm that Interlock registered the apps with the load balancer by looking at its logs. You should see the "restarted proxy container" message if Interlock registered the container successfully.
 
-
 ```
 $ docker-compose -f nginx-docker-compose.yml logs -f
 Attaching to interlock_nginx_1, interlock_interlock_1
@@ -523,17 +522,18 @@ interlock_1  | DEBU[0016] checking to remove proxy containers from networks  ext
 8.  If you need to scale the voting-app service, you can simply scale it using docker-compose. Interlock will add the newly added container to the voting-app backend. You will note that your request will be served from a different container each time you hit `vote.myenterprise.com`.
 
 ```
-	$ docker-compose scale voting-app=10
-	Creating and starting 2 ... done
-	Creating and starting 3 ... done
-	Creating and starting 4 ... done
-	Creating and starting 5 ... done
-	Creating and starting 6 ... done
-	Creating and starting 7 ... done
-	Creating and starting 8 ... done
-	Creating and starting 9 ... done
-	Creating and starting 10 ... done
+$ docker-compose scale voting-app=10
+Creating and starting 2 ... done
+Creating and starting 3 ... done
+Creating and starting 4 ... done
+Creating and starting 5 ... done
+Creating and starting 6 ... done
+Creating and starting 7 ... done
+Creating and starting 8 ... done
+Creating and starting 9 ... done
+Creating and starting 10 ... done
 ```
+
 
 ![](images/vote.png)
 ![](images/results.png)
