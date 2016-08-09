@@ -233,8 +233,6 @@ Finally, you need to add specific metadata in the form of container labels when 
 These steps provide the necessary service registration and load balancing solution that can be used by any developer when deploying their applications on UCP. Follow these step-by-step procedures to configure your UCP cluster based on your preferred industry-standard load balancing backend (NGINX). The following diagram shows the load balancing solution.
  
 ![Load Balancing Solution](images/lb_sd_reference_arc_ext_sd.png)
- 
-![](images/lb_sd_reference_arc_ext_sd.png)
 
 The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX/NGINX+:
 
@@ -248,7 +246,7 @@ The following steps provide a guideline to configuring the load-balancing soluti
 	OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
 	```
 
-3.  On the dedicated UCP node (**lb**) , create a new Docker Compose file called `docker-compose.yml` with the below content. **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
+2.  On the dedicated UCP node (**lb**) , create a new Docker Compose file called `docker-compose.yml` with the below content. **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
 
 	```
 	interlock:
@@ -256,43 +254,43 @@ The following steps provide a guideline to configuring the load-balancing soluti
 	    command: -D run
 	    tty: true
 	    ports:
-        	- 8080
-    	environment:
+	        - 8080
+	    environment:
 	        INTERLOCK_CONFIG: |
-            	ListenAddr = ":8080"
-            	DockerURL = "${SWARM_HOST}"
-            	TLSCACert = "/certs/ca.pem"
-            	TLSCert = "/certs/cert.pem"
-            	TLSKey = "/certs/key.pem"
-            	PollInterval = "10s"
-	            
-            	[[Extensions]]
-            	Name = "nginx"
-            	ConfigPath = "/etc/nginx/nginx.conf"
-            	PidPath = "/etc/nginx/nginx.pid"
-            	MaxConn = 1024
-            	Port = 80
-    	volumes:
+	            ListenAddr = ":8080"
+	            DockerURL = "${SWARM_HOST}"
+	            TLSCACert = "/certs/ca.pem"
+	            TLSCert = "/certs/cert.pem"
+	            TLSKey = "/certs/key.pem"
+	            PollInterval = "10s"
+	
+	            [[Extensions]]
+	            Name = "nginx"
+	            ConfigPath = "/etc/nginx/nginx.conf"
+	            PidPath = "/etc/nginx/nginx.pid"
+	            MaxConn = 1024
+	            Port = 80
+	    volumes:
 	        - ucp-node-certs:/certs
 	    restart: always
-	    
+	
 	nginx:
 	    image: nginx:latest
 	    entrypoint: nginx
 	    command: -g "daemon off;" -c /etc/nginx/nginx.conf
 	    ports:
-        	- 80:80
-    	labels:
+	        - 80:80
+	    labels:
 	        - "interlock.ext.name=nginx"
 	    restart: always
-```
+	```
 
-4.  On the dedicated UCP node (**lb**), export an environment variable called **SWARM_HOST**. This variable should be the FQDN/IP address+ Swarm manager port of UCP Controller. The Swarm port is `2376` by default. You can check it by doing a `docker ps` and checking the host mounter port of the `ucp-swarm-manager` container on the UCP controller node. If you use a FQDN that is assigned to the UCP loadbalancer then please ensure that you're also forwarding on port access. For example, if you're using a private AWS ELB to loadbalance across the UCP Controllers, it needs to forward TCP port `2376`.  Alternatively, you can use the private IP address of any of the UCP controllers.
+3.  On the dedicated UCP node (**lb**), export an environment variable called **SWARM_HOST**. This variable should be the FQDN/IP address+ Swarm manager port of UCP Controller. The Swarm port is `2376` by default. You can check it by doing a `docker ps` and checking the host mounter port of the `ucp-swarm-manager` container on the UCP controller node. If you use a FQDN that is assigned to the UCP loadbalancer then please ensure that you're also forwarding on port access. For example, if you're using a private AWS ELB to loadbalance across the UCP Controllers, it needs to forward TCP port `2376`.  Alternatively, you can use the private IP address of any of the UCP controllers.
 
 
 	`$ export SWARM_HOST=tcp://<private_IP_of_ANY_UCP_controller>:2376`
 
-5.  On the dedicated UCP node (**lb**), deploy Interlock+NGINX using the following docker-compose command:
+4.  On the dedicated UCP node (**lb**), deploy Interlock+NGINX using the following docker-compose command:
 
 	```
 	$ docker-compose up -d
@@ -300,7 +298,7 @@ The following steps provide a guideline to configuring the load-balancing soluti
 	Creating interlock_interlock_1
 	```
 
-6.  Confirm that Interlock is connected to the Swarm event stream:
+5.  Confirm that Interlock is connected to the Swarm event stream:
 
 	```
 	$ docker-compose logs
@@ -342,7 +340,6 @@ In our sample app, we want to expose two services externally. These services are
 	```
 
 	Followed by:
-
 	```
 	ucp-bundle-admin$ docker version
 	Client:
@@ -365,23 +362,20 @@ In our sample app, we want to expose two services externally. These services are
 4.  We need to adjust the app's Compose file to add the necessary Interlock labels. 
 
 	For `voting-app` we add the following:
-
 	```
-	    labels:
-	     interlock.hostname: "vote"
-	     interlock.domain:   "example.com"
+	labels:
+	 interlock.hostname: "vote"
+	 interlock.domain:   "example.com"
 	```
 
 	For `results-app` we add the following:
-
 	```
-	    labels:
-	     interlock.hostname: "results"
-	     interlock.domain:   "example.com"
+	labels:
+	 interlock.hostname: "results"
+	 interlock.domain:   "example.com"
 	```
 
 	The complete docker-compose file now should like this :
-
 	```
 	version: "2"
 	
@@ -430,8 +424,8 @@ In our sample app, we want to expose two services externally. These services are
 	
 	networks:
 	  voteapp:
-	  ```
-	
+	```
+
 5. Deploy the app on UCP using Docker Compose:
 	```
 	$ docker-compose up -d
