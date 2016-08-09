@@ -1,5 +1,3 @@
-## Reference Architecture: Service Discovery and Load-Balancing with Docker Universal Control Plane (UCP)
-
 ### Introduction
 
 When developing applications, developers focus on functionality, speed, robustness, and quality of the application itself more than the ongoing operations. However, the shift to DevOps in application deployment practices has forced developers to own not only the application's development but also its deployment operations (developers are no longer pager-duty-free!). This shift also encouraged the operations teams to provide a common, scalable, and secure infrastructure that multiple developer teams can use to build, test, stage and deploy their applications.
