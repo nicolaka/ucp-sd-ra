@@ -246,71 +246,70 @@ The following steps provide a guideline to configuring the load-balancing soluti
 
 2.  On the dedicated UCP node (**lb**) , create a new Docker Compose file called `docker-compose.yml` with the below content. **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
 	
-	```
-	interlock:
-	    image: ehazlett/interlock:master
-	    command: -D run
-	    tty: true
-	    ports:
-	        - 8080
-	    environment:
-	        INTERLOCK_CONFIG: |
-	            ListenAddr = ":8080"
-	            DockerURL = "${SWARM_HOST}"
-	            TLSCACert = "/certs/ca.pem"
-	            TLSCert = "/certs/cert.pem"
-	            TLSKey = "/certs/key.pem"
-	            PollInterval = "10s"
-	            
-	            [[Extensions]]
-	            Name = "nginx"
-	            ConfigPath = "/etc/nginx/nginx.conf"
-	            PidPath = "/etc/nginx/nginx.pid"
-	            MaxConn = 1024
-	            Port = 80
-	    volumes:
-	        - ucp-node-certs:/certs
-	    restart: always
-	
-	nginx:
-	    image: nginx:latest
-	    entrypoint: nginx
-	    command: -g "daemon off;" -c /etc/nginx/nginx.conf
-	    ports:
-	        - 80:80
-	    labels:
-	        - "interlock.ext.name=nginx"
-	    restart: always
-	```
+    ```
+    interlock:
+        image: ehazlett/interlock:master
+        command: -D run
+        tty: true
+        ports:
+            - 8080
+        environment:
+            INTERLOCK_CONFIG: |
+                ListenAddr = ":8080"
+                DockerURL = "${SWARM_HOST}"
+                TLSCACert = "/certs/ca.pem"
+                TLSCert = "/certs/cert.pem"
+                TLSKey = "/certs/key.pem"
+                PollInterval = "10s"
+                
+                [[Extensions]]
+                Name = "nginx"
+                ConfigPath = "/etc/nginx/nginx.conf"
+                PidPath = "/etc/nginx/nginx.pid"
+                MaxConn = 1024
+                Port = 80
+        volumes:
+            - ucp-node-certs:/certs
+        restart: always
+    
+    nginx:
+        image: nginx:latest
+        entrypoint: nginx
+        command: -g "daemon off;" -c /etc/nginx/nginx.conf
+        ports:
+            - 80:80
+        labels:
+            - "interlock.ext.name=nginx"
+        restart: always
+    ```
 
 3.  On the dedicated UCP node (**lb**), export an environment variable called **SWARM_HOST**. This variable should be the FQDN/IP address+ Swarm manager port of UCP Controller. The Swarm port is `2376` by default. You can check it by doing a `docker ps` and checking the host mounter port of the `ucp-swarm-manager` container on the UCP controller node. If you use a FQDN that is assigned to the UCP loadbalancer then please ensure that you're also forwarding on port access. For example, if you're using a private AWS ELB to loadbalance across the UCP Controllers, it needs to forward TCP port `2376`.  Alternatively, you can use the private IP address of any of the UCP controllers.
-
 
 	`$ export SWARM_HOST=tcp://<private_IP_of_ANY_UCP_controller>:2376`
 
 4.  On the dedicated UCP node (**lb**), deploy Interlock+NGINX using the following docker-compose command:
 
-	```
-	$ docker-compose up -d
-	Creating interlock_nginx_1
-	Creating interlock_interlock_1
-	```
+    ```
+    $ docker-compose up -d
+    Creating interlock_nginx_1
+    Creating interlock_interlock_1
+    ```
 
 5.  Confirm that Interlock is connected to the Swarm event stream:
 
-	```
-	$ docker-compose logs
-	Attaching to interlock_interlock_1, interlock_nginx_1
-	interlock_1  | INFO[0000] interlock 1.2.0-master (2fd9af6)
-	interlock_1  | DEBU[0000] loading config from environment
-	interlock_1  | DEBU[0000] using tls for communication with docker
-	interlock_1  | DEBU[0000] docker client: url=tcp://192.168.3.100:2376
-	interlock_1  | DEBU[0000] loading extension: name=nginx
-	interlock_1  | DEBU[0000] using internal configuration template         ext=lb
-	interlock_1  | INFO[0000] interlock node: id=eed2837eb4807518b9ff55b49ec29ad99415816b49eb7ea6176f3953d1842db1  ext=lb
-	interlock_1  | DEBU[0000] starting event handling
-	interlock_1  | INFO[0000] using polling for container updates: interval=10s
-	```
+    ```
+    $ docker-compose logs
+    Attaching to interlock_interlock_1, interlock_nginx_1
+    interlock_1  | INFO[0000] interlock 1.2.0-master (2fd9af6)
+    interlock_1  | DEBU[0000] loading config from environment
+    interlock_1  | DEBU[0000] using tls for communication with docker
+    interlock_1  | DEBU[0000] docker client: url=tcp://192.168.3.100:2376
+    interlock_1  | DEBU[0000] loading extension: name=nginx
+    interlock_1  | DEBU[0000] using internal configuration template         ext=lb
+    interlock_1  | INFO[0000] interlock node: id=eed2837eb4807518b9ff55b49ec29ad99415816b49eb7ea6176f3953d1842db1  ext=lb
+    interlock_1  | DEBU[0000] starting event handling
+    interlock_1  | INFO[0000] using polling for container updates: interval=10s
+    ```
 
 ### Application Deployment Configuration
 
