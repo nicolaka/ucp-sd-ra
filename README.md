@@ -103,7 +103,7 @@ To follow this reference architecture, you will need the following working envir
 ![Prerequisite Working Environment](images/lb_sd_reference_arch_base_env.png)
 
 
-**Note:** You do not need to have UCP installed. You will install it at a later step. However, you can review the [installation requirements] (https://docs.docker.com/ucp/plan-production-install/).
+**Note:** You do not need to have UCP installed. You will install it at a later step. However, you can review the [installation requirements](https://docs.docker.com/ucp/plan-production-install/).
 
 **Note:** You do not need to have UCP installed. You will install it at a later step.
 
@@ -235,7 +235,7 @@ These steps provide the necessary service registration and load balancing soluti
 The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX/NGINX+:
 
 1.  On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose in installed:
-
+	
 	```
 	$ docker-compose version
 	docker-compose version 1.6.2, build 4d72027
@@ -245,7 +245,7 @@ The following steps provide a guideline to configuring the load-balancing soluti
 	```
 
 2.  On the dedicated UCP node (**lb**) , create a new Docker Compose file called `docker-compose.yml` with the below content. **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
-
+	
 	```
 	interlock:
 	    image: ehazlett/interlock:master
@@ -261,7 +261,7 @@ The following steps provide a guideline to configuring the load-balancing soluti
 	            TLSCert = "/certs/cert.pem"
 	            TLSKey = "/certs/key.pem"
 	            PollInterval = "10s"
-	
+	            
 	            [[Extensions]]
 	            Name = "nginx"
 	            ConfigPath = "/etc/nginx/nginx.conf"
