@@ -243,71 +243,66 @@ The following steps provide a guideline to configuring the load-balancing soluti
         OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
 
 2.  On the dedicated UCP node (**lb**) , create a new Docker Compose file called `docker-compose.yml` with the below content. **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
-	
-    ```
-    interlock:
-        image: ehazlett/interlock:master
-        command: -D run
-        tty: true
-        ports:
-            - 8080
-        environment:
-            INTERLOCK_CONFIG: |
-                ListenAddr = ":8080"
-                DockerURL = "${SWARM_HOST}"
-                TLSCACert = "/certs/ca.pem"
-                TLSCert = "/certs/cert.pem"
-                TLSKey = "/certs/key.pem"
-                PollInterval = "10s"
-                
-                [[Extensions]]
-                Name = "nginx"
-                ConfigPath = "/etc/nginx/nginx.conf"
-                PidPath = "/etc/nginx/nginx.pid"
-                MaxConn = 1024
-                Port = 80
-        volumes:
-            - ucp-node-certs:/certs
-        restart: always
-    
-    nginx:
-        image: nginx:latest
-        entrypoint: nginx
-        command: -g "daemon off;" -c /etc/nginx/nginx.conf
-        ports:
-            - 80:80
-        labels:
-            - "interlock.ext.name=nginx"
-        restart: always
-    ```
+
+        interlock:
+            image: ehazlett/interlock:master
+            command: -D run
+            tty: true
+            ports:
+                - 8080
+            environment:
+                INTERLOCK_CONFIG: |
+                    ListenAddr = ":8080"
+                    DockerURL = "${SWARM_HOST}"
+                    TLSCACert = "/certs/ca.pem"
+                    TLSCert = "/certs/cert.pem"
+                    TLSKey = "/certs/key.pem"
+                    PollInterval = "10s"
+                    
+                    [[Extensions]]
+                    Name = "nginx"
+                    ConfigPath = "/etc/nginx/nginx.conf"
+                    PidPath = "/etc/nginx/nginx.pid"
+                    MaxConn = 1024
+                    Port = 80
+            volumes:
+                - ucp-node-certs:/certs
+            restart: always
+        
+        nginx:
+            image: nginx:latest
+            entrypoint: nginx
+            command: -g "daemon off;" -c /etc/nginx/nginx.conf
+            ports:
+                - 80:80
+            labels:
+                - "interlock.ext.name=nginx"
+            restart: always
 
 3.  On the dedicated UCP node (**lb**), export an environment variable called **SWARM_HOST**. This variable should be the FQDN/IP address+ Swarm manager port of UCP Controller. The Swarm port is `2376` by default. You can check it by doing a `docker ps` and checking the host mounter port of the `ucp-swarm-manager` container on the UCP controller node. If you use a FQDN that is assigned to the UCP loadbalancer then please ensure that you're also forwarding on port access. For example, if you're using a private AWS ELB to loadbalance across the UCP Controllers, it needs to forward TCP port `2376`.  Alternatively, you can use the private IP address of any of the UCP controllers.
 
-	`$ export SWARM_HOST=tcp://<private_IP_of_ANY_UCP_controller>:2376`
+        $ export SWARM_HOST=tcp://<private_IP_of_ANY_UCP_controller>:2376
 
 4.  On the dedicated UCP node (**lb**), deploy Interlock+NGINX using the following docker-compose command:
 
-    ```
-    $ docker-compose up -d
-    Creating interlock_nginx_1
-    Creating interlock_interlock_1
-    ```
+        $ docker-compose up -d
+        Creating interlock_nginx_1
+        Creating interlock_interlock_1
 
 5.  Confirm that Interlock is connected to the Swarm event stream:
 
-    ```
-    $ docker-compose logs
-    Attaching to interlock_interlock_1, interlock_nginx_1
-    interlock_1  | INFO[0000] interlock 1.2.0-master (2fd9af6)
-    interlock_1  | DEBU[0000] loading config from environment
-    interlock_1  | DEBU[0000] using tls for communication with docker
-    interlock_1  | DEBU[0000] docker client: url=tcp://192.168.3.100:2376
-    interlock_1  | DEBU[0000] loading extension: name=nginx
-    interlock_1  | DEBU[0000] using internal configuration template         ext=lb
-    interlock_1  | INFO[0000] interlock node: id=eed2837eb4807518b9ff55b49ec29ad99415816b49eb7ea6176f3953d1842db1  ext=lb
-    interlock_1  | DEBU[0000] starting event handling
-    interlock_1  | INFO[0000] using polling for container updates: interval=10s
-    ```
+        $ docker-compose logs
+        Attaching to interlock_interlock_1, interlock_nginx_1
+        interlock_1  | INFO[0000] interlock 1.2.0-master (2fd9af6)
+        interlock_1  | DEBU[0000] loading config from environment
+        interlock_1  | DEBU[0000] using tls for communication with docker
+        interlock_1  | DEBU[0000] docker client: url=tcp://192.168.3.100:2376
+        interlock_1  | DEBU[0000] loading extension: name=nginx
+        interlock_1  | DEBU[0000] using internal configuration template         ext=lb
+        interlock_1  | INFO[0000] interlock node: id=eed2837eb4807518b9ff55b49ec29ad99415816b49eb7ea6176f3953d1842db1  ext=lb
+        interlock_1  | DEBU[0000] starting event handling
+        interlock_1  | INFO[0000] using polling for container updates: interval=10s
+
 
 ### Application Deployment Configuration
 
@@ -318,186 +313,173 @@ In our sample app, we want to expose two services externally. These services are
 1. From your local machine, download a UCP client bundle. Instructions can be found [here](https://docs.docker.com/ucp/deploy-application/#step-2-get-the-client-bundle-and-configure-a-shell).
 
 2. Ensure that you have Docker Compose installed on your local environment. 
-	
-	```
-	$ docker-compose version
-	docker-compose version 1.6.2, build 4d72027
-	docker-py version: 1.7.2
-	CPython version: 2.7.6
-	OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
-	```
+
+        $ docker-compose version
+        docker-compose version 1.6.2, build 4d72027
+        docker-py version: 1.7.2
+        CPython version: 2.7.6
+        OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
 
 3. Ensure that you're pointing your local Docker client to the UCP controller:
 
-	```
-	$ cd /path/to/ucp-bundle-admin
-	ucp-bundle-admin$ source env.sh
-	```
+        $ cd /path/to/ucp-bundle-admin
+        ucp-bundle-admin$ source env.sh
 
-	Followed by:
-	```
-	ucp-bundle-admin$ docker version
-	Client:
-	 Version:      1.10.1
-	 API version:  1.22
-	 Go version:   go1.5.3
-	 Git commit:   9e83765
-	 Built:        Thu Feb 11 19:27:08 2016
-	 OS/Arch:      linux/amd64
-	
-	Server:
-	 Version:      ucp/1.0.0
-	 API version:  1.22
-	 Go version:   go1.5.3
-	 Git commit:   5c4f6d8
-	 Built:
-	 OS/Arch:      linux/amd64
-	```
+    Followed by:
+
+        ucp-bundle-admin$ docker version
+        Client:
+         Version:      1.10.1
+         API version:  1.22
+         Go version:   go1.5.3
+         Git commit:   9e83765
+         Built:        Thu Feb 11 19:27:08 2016
+         OS/Arch:      linux/amd64
+        
+        Server:
+         Version:      ucp/1.0.0
+         API version:  1.22
+         Go version:   go1.5.3
+         Git commit:   5c4f6d8
+         Built:
+         OS/Arch:      linux/amd64
 
 4.  We need to adjust the app's Compose file to add the necessary Interlock labels. 
 
 	For `voting-app` we add the following:
-	```
-	labels:
-	 interlock.hostname: "vote"
-	 interlock.domain:   "example.com"
-	```
+
+        labels:
+         interlock.hostname: "vote"
+         interlock.domain:   "example.com"
 
 	For `results-app` we add the following:
-	```
-	labels:
-	 interlock.hostname: "results"
-	 interlock.domain:   "example.com"
-	```
+
+        labels:
+         interlock.hostname: "results"
+         interlock.domain:   "example.com"
 
 	The complete docker-compose file now should like this :
-	```
-	version: "2"
-	
-	services:
-	  voting-app:
-	    image: nicolaka/voting-app:latest
-	    ports:
-	      - "80"
-	    networks:
-	      voteapp:
-	    labels:
-		     interlock.hostname: "vote"
-		     interlock.domain:   "example.com"
-	  result-app:
-	    image: nicolaka/result-app:latest
-	    ports:
-	      - "80"
-	    networks:
-	      voteapp:
-	    labels:
-		     interlock.hostname: "results"
-		     interlock.domain:   "example.com"
-	  worker:
-	    image: nicolaka/worker:latest
-	    networks:
-	      voteapp:
-	       aliases:
-	        - workers
-	  redis:
-	    image: redis
-	    ports:
-	      - "6379"
-	    networks:
-	      voteapp:
-	    container_name: redis
-	
-	  db:
-	    image: postgres:9.4
-	    volumes:
-	      - "db-data:/var/lib/postgresql/data"
-	    networks:
-	      voteapp:
-	    container_name: db
-	volumes:
-	  db-data:
-	
-	networks:
-	  voteapp:
-	```
+
+        version: "2"
+        
+        services:
+          voting-app:
+            image: nicolaka/voting-app:latest
+            ports:
+              - "80"
+            networks:
+              voteapp:
+            labels:
+        	     interlock.hostname: "vote"
+        	     interlock.domain:   "example.com"
+          result-app:
+            image: nicolaka/result-app:latest
+            ports:
+              - "80"
+            networks:
+              voteapp:
+            labels:
+        	     interlock.hostname: "results"
+        	     interlock.domain:   "example.com"
+          worker:
+            image: nicolaka/worker:latest
+            networks:
+              voteapp:
+               aliases:
+                - workers
+          redis:
+            image: redis
+            ports:
+              - "6379"
+            networks:
+              voteapp:
+            container_name: redis
+        
+          db:
+            image: postgres:9.4
+            volumes:
+              - "db-data:/var/lib/postgresql/data"
+            networks:
+              voteapp:
+            container_name: db
+        volumes:
+          db-data:
+        
+        networks:
+          voteapp:
 
 5. Deploy the app on UCP using Docker Compose:
-	```
-	$ docker-compose up -d
-	Creating network "examplevotingapp_voteapp" with the default driver
-	Creating examplevotingapp_worker_1
-	Creating db
-	Creating redis
-	Creating examplevotingapp_voting-app_1
-	Creating examplevotingapp_result-app_1
-	$ docker-compose ps
-	            Name                           Command               State            Ports
-	------------------------------------------------------------------------------------------------
-	db                              /docker-entrypoint.sh postgres   Up      5432/tcp
-	examplevotingapp_result-app_1   node server.js                   Up      0.0.0.0:32808->80/tcp
-	examplevotingapp_voting-app_1   /bin/sh -c dotnet Worker.dll     Up      0.0.0.0:32809->80/tcp
-	examplevotingapp_worker_1       /bin/sh -c dotnet Worker.dll     Up
-	redis                           docker-entrypoint.sh redis ...   Up      0.0.0.0:32807->6379/tcp
-	```
+
+        $ docker-compose up -d
+        Creating network "examplevotingapp_voteapp" with the default driver
+        Creating examplevotingapp_worker_1
+        Creating db
+        Creating redis
+        Creating examplevotingapp_voting-app_1
+        Creating examplevotingapp_result-app_1
+        $ docker-compose ps
+                    Name                           Command               State            Ports
+        ------------------------------------------------------------------------------------------------
+        db                              /docker-entrypoint.sh postgres   Up      5432/tcp
+        examplevotingapp_result-app_1   node server.js                   Up      0.0.0.0:32808->80/tcp
+        examplevotingapp_voting-app_1   /bin/sh -c dotnet Worker.dll     Up      0.0.0.0:32809->80/tcp
+        examplevotingapp_worker_1       /bin/sh -c dotnet Worker.dll     Up
+        redis                           docker-entrypoint.sh redis ...   Up      0.0.0.0:32807->6379/tcp
 
 6. On the **lb**, confirm that Interlock registered the apps with the load balancer by looking at its logs. You should see the "restarted proxy container" message if Interlock registered the container successfully.
 
-	```
-	$ docker-compose -f nginx-docker-compose.yml logs -f
-	Attaching to interlock_nginx_1, interlock_interlock_1
-	interlock_1  | INFO[0000] interlock 1.2.0-master (2fd9af6)
-	interlock_1  | DEBU[0000] loading config from environment
-	interlock_1  | DEBU[0000] using tls for communication with docker
-	interlock_1  | DEBU[0000] docker client: url=tcp://192.168.23.35:2376
-	interlock_1  | DEBU[0000] loading extension: name=nginx
-	interlock_1  | DEBU[0000] using internal configuration template         ext=lb
-	interlock_1  | INFO[0000] interlock node: id=476e5c33b0d37c51979eb9378fde5a29f001e7397863c32d856eb4a890b17d35  ext=lb
-	interlock_1  | DEBU[0000] starting event handling
-	interlock_1  | INFO[0000] using polling for container updates: interval=10s
-	interlock_1  | DEBU[0010] detected new containers; triggering reload
-	interlock_1  | DEBU[0010] event received: status=interlock-restart id=1470273010924854177 type= action=
-	interlock_1  | DEBU[0010] notifying extension: lb
-	interlock_1  | DEBU[0010] triggering reload                             ext=lb
-	interlock_1  | DEBU[0014] reaping key: reload
-	interlock_1  | DEBU[0014] triggering reload from cache                  ext=lb
-	interlock_1  | DEBU[0014] checking to reload                            ext=lb
-	interlock_1  | DEBU[0014] updating load balancers                       ext=lb
-	interlock_1  | DEBU[0014] generating proxy config                       ext=lb
-	interlock_1  | DEBU[0014] websocket endpoints: []                       ext=nginx
-	interlock_1  | DEBU[0014] alias domains: []                             ext=nginx
-	interlock_1  | INFO[0014] result.example.com: upstream=192.168.24.18:32808  ext=nginx
-	interlock_1  | DEBU[0014] websocket endpoints: []                       ext=nginx
-	interlock_1  | DEBU[0014] alias domains: []                             ext=nginx
-	interlock_1  | INFO[0014] vote.example.com: upstream=192.168.24.18:32809  ext=nginx
-	interlock_1  | DEBU[0014] proxy config path: /etc/nginx/nginx.conf      ext=lb
-	interlock_1  | DEBU[0014] detected proxy container: id=4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65 backend=nginx  ext=lb
-	interlock_1  | DEBU[0014] proxyContainers: [{4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65 [/ip-192-168-24-18/interlock_nginx_1] nginx:latest nginx -g 'daemon off;' -c /etc/nginx/nginx.conf 1470272999 Up 10 seconds [{ 443 0 tcp} {192.168.24.18 80 80 tcp}] 0 0 map[com.docker.compose.project:interlock com.docker.compose.service:nginx com.docker.compose.version:1.8.0 interlock.ext.name:nginx com.docker.compose.config-hash:7d2169ca9bdc4664f5665b69c1e3b4dd679821835037ecadd6718c91d16326db com.docker.compose.container-number:1 com.docker.compose.oneoff:False] {map[bridge:{<nil> [] []  2aa1ebd461d18bf74ca94fc34a38446c12da08b88be062bbfcce02de39e0d740 172.17.0.1 172.17.0.3 16   0 02:42:ac:11:00:03}]}}]  ext=lb
-	interlock_1  | DEBU[0014] saving proxy config                           ext=lb
-	interlock_1  | DEBU[0014] updating proxy config: id=4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65  ext=lb
-	interlock_1  | DEBU[0015] signaling reload                              ext=lb
-	interlock_1  | DEBU[0016] reloading proxy container: id=4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65  ext=nginx
-	interlock_1  | INFO[0016] restarted proxy container: id=4452bce7c1e1 name=/ip-192-168-24-18/interlock_nginx_1  ext=nginx
-	interlock_1  | DEBU[0016] triggering proxy network cleanup              ext=lb
-	interlock_1  | INFO[0016] reload duration: 2267.36ms                    ext=lb
-	interlock_1  | DEBU[0016] checking to remove proxy containers from networks  ext=lb
-	```
+        $ docker-compose -f nginx-docker-compose.yml logs -f
+        Attaching to interlock_nginx_1, interlock_interlock_1
+        interlock_1  | INFO[0000] interlock 1.2.0-master (2fd9af6)
+        interlock_1  | DEBU[0000] loading config from environment
+        interlock_1  | DEBU[0000] using tls for communication with docker
+        interlock_1  | DEBU[0000] docker client: url=tcp://192.168.23.35:2376
+        interlock_1  | DEBU[0000] loading extension: name=nginx
+        interlock_1  | DEBU[0000] using internal configuration template         ext=lb
+        interlock_1  | INFO[0000] interlock node: id=476e5c33b0d37c51979eb9378fde5a29f001e7397863c32d856eb4a890b17d35  ext=lb
+        interlock_1  | DEBU[0000] starting event handling
+        interlock_1  | INFO[0000] using polling for container updates: interval=10s
+        interlock_1  | DEBU[0010] detected new containers; triggering reload
+        interlock_1  | DEBU[0010] event received: status=interlock-restart id=1470273010924854177 type= action=
+        interlock_1  | DEBU[0010] notifying extension: lb
+        interlock_1  | DEBU[0010] triggering reload                             ext=lb
+        interlock_1  | DEBU[0014] reaping key: reload
+        interlock_1  | DEBU[0014] triggering reload from cache                  ext=lb
+        interlock_1  | DEBU[0014] checking to reload                            ext=lb
+        interlock_1  | DEBU[0014] updating load balancers                       ext=lb
+        interlock_1  | DEBU[0014] generating proxy config                       ext=lb
+        interlock_1  | DEBU[0014] websocket endpoints: []                       ext=nginx
+        interlock_1  | DEBU[0014] alias domains: []                             ext=nginx
+        interlock_1  | INFO[0014] result.example.com: upstream=192.168.24.18:32808  ext=nginx
+        interlock_1  | DEBU[0014] websocket endpoints: []                       ext=nginx
+        interlock_1  | DEBU[0014] alias domains: []                             ext=nginx
+        interlock_1  | INFO[0014] vote.example.com: upstream=192.168.24.18:32809  ext=nginx
+        interlock_1  | DEBU[0014] proxy config path: /etc/nginx/nginx.conf      ext=lb
+        interlock_1  | DEBU[0014] detected proxy container: id=4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65 backend=nginx  ext=lb
+        interlock_1  | DEBU[0014] proxyContainers: [{4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65 [/ip-192-168-24-18/interlock_nginx_1] nginx:latest nginx -g 'daemon off;' -c /etc/nginx/nginx.conf 1470272999 Up 10 seconds [{ 443 0 tcp} {192.168.24.18 80 80 tcp}] 0 0 map[com.docker.compose.project:interlock com.docker.compose.service:nginx com.docker.compose.version:1.8.0 interlock.ext.name:nginx com.docker.compose.config-hash:7d2169ca9bdc4664f5665b69c1e3b4dd679821835037ecadd6718c91d16326db com.docker.compose.container-number:1 com.docker.compose.oneoff:False] {map[bridge:{<nil> [] []  2aa1ebd461d18bf74ca94fc34a38446c12da08b88be062bbfcce02de39e0d740 172.17.0.1 172.17.0.3 16   0 02:42:ac:11:00:03}]}}]  ext=lb
+        interlock_1  | DEBU[0014] saving proxy config                           ext=lb
+        interlock_1  | DEBU[0014] updating proxy config: id=4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65  ext=lb
+        interlock_1  | DEBU[0015] signaling reload                              ext=lb
+        interlock_1  | DEBU[0016] reloading proxy container: id=4452bce7c1e1bd5919b51cf4e40d381705635523f20ac72a6a943c5b9b1b3d65  ext=nginx
+        interlock_1  | INFO[0016] restarted proxy container: id=4452bce7c1e1 name=/ip-192-168-24-18/interlock_nginx_1  ext=nginx
+        interlock_1  | DEBU[0016] triggering proxy network cleanup              ext=lb
+        interlock_1  | INFO[0016] reload duration: 2267.36ms                    ext=lb
+        interlock_1  | DEBU[0016] checking to remove proxy containers from networks  ext=lb
 
 7. You can now access the app by going to http://vote.example.com or http://results.example.com.
 
 8.  If you need to scale the voting-app service, you can simply scale it using docker-compose. Interlock will add the newly added container to the voting-app backend. You will note that your request will be served from a different container each time you hit `vote.example.com`.
 
-	```
-	$ docker-compose scale voting-app=10
-	Creating and starting 2 ... done
-	Creating and starting 3 ... done
-	Creating and starting 4 ... done
-	Creating and starting 5 ... done
-	Creating and starting 6 ... done
-	Creating and starting 7 ... done
-	Creating and starting 8 ... done
-	Creating and starting 9 ... done
-	Creating and starting 10 ... done
-	```
+        $ docker-compose scale voting-app=10
+        Creating and starting 2 ... done
+        Creating and starting 3 ... done
+        Creating and starting 4 ... done
+        Creating and starting 5 ... done
+        Creating and starting 6 ... done
+        Creating and starting 7 ... done
+        Creating and starting 8 ... done
+        Creating and starting 9 ... done
+        Creating and starting 10 ... done
 
 ![](images/vote.png)
 ![](images/results.png)
