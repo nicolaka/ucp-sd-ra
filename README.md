@@ -236,15 +236,15 @@ The following steps provide a guideline to configuring the load-balancing soluti
 
 1.  On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose is installed:
 
-```
-
-$ docker-compose version
-docker-compose version 1.6.2, build 4d72027
-docker-py version: 1.7.2
-CPython version: 2.7.6
-OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
-
-```
+    ```
+    
+    $ docker-compose version
+    docker-compose version 1.6.2, build 4d72027
+    docker-py version: 1.7.2
+    CPython version: 2.7.6
+    OpenSSL version: OpenSSL 1.0.1f 6 Jan 2014
+    
+    ```
 
 2.  On the dedicated UCP node (**lb**) , create a new Docker Compose file called `docker-compose.yml` with the below content. **Note:** In this example, we're using the standard NGINX Docker image. However, you can use your own NGINX+ image. All you need to do is change the image for the `nginx` service in the Docker Compose file and repeat step #1 with the `NginxPlusEnabled = true` option.
 	
