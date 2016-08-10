@@ -234,10 +234,10 @@ These steps provide the necessary service registration and load balancing soluti
 
 The following steps provide a guideline to configuring the load-balancing solution on a dedicated UCP node using Interlock + NGINX/NGINX+:
 
-1.  On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose in installed:
+1.  On the dedicated UCP node (**lb**), [install Docker Compose](https://docs.docker.com/compose/install/). Then ensure that docker-compose is installed:
 
 ```
-$ docker-compose version
+test$ docker-compose version
 docker-compose version 1.6.2, build 4d72027
 docker-py version: 1.7.2
 CPython version: 2.7.6
